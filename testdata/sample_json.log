@@ -1,0 +1,5 @@
+{"timestamp":"2024-01-15T08:30:01Z","level":"info","message":"Application starting up","service":"api"}
+{"timestamp":"2024-01-15T08:30:02Z","level":"debug","message":"Loading configuration","path":"/etc/app/config.yaml"}
+{"timestamp":"2024-01-15T08:30:03Z","level":"warn","message":"Cache miss rate above threshold","rate":0.45}
+{"timestamp":"2024-01-15T08:30:05Z","level":"error","message":"Failed to connect to redis","error":"Connection refused","host":"localhost:6379"}
+{"timestamp":"2024-01-15T08:30:06Z","level":"info","message":"Request received","method":"GET","path":"/api/users","duration_ms":23}

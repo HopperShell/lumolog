@@ -1,0 +1,5 @@
+Jan 15 08:30:01 myhost sshd[1234]: Accepted publickey for user from 192.168.1.100 port 52413
+Jan 15 08:30:02 myhost kernel: [  123.456789] usb 1-1: new high-speed USB device number 2
+Jan 15 08:30:03 myhost systemd[1]: Started Application Service.
+Jan 15 08:30:05 myhost app[5678]: ERROR: Database connection timeout after 30s
+Jan 15 08:30:06 myhost app[5678]: WARNING: Retrying connection (attempt 2/5)
