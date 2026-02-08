@@ -26,6 +26,7 @@ impl FileSource {
         &self.lines
     }
 
+    #[allow(dead_code)] // used by integration tests
     pub fn line_count(&self) -> usize {
         self.lines.len()
     }
@@ -44,6 +45,7 @@ impl StdinSource {
     }
 
     /// For testing: read from any reader.
+    #[allow(dead_code)] // used by integration tests
     pub fn from_reader<R: Read>(reader: R) -> Self {
         let reader = io::BufReader::new(reader);
         let lines: Vec<String> = reader.lines().map_while(Result::ok).collect();
