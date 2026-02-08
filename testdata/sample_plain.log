@@ -1,0 +1,10 @@
+2024-01-15 08:30:01 INFO  Application starting up
+2024-01-15 08:30:02 DEBUG Loading configuration from /etc/app/config.yaml
+2024-01-15 08:30:02 INFO  Connected to database at localhost:5432
+2024-01-15 08:30:03 WARN  Cache miss rate above threshold: 45%
+2024-01-15 08:30:05 ERROR Failed to connect to redis: Connection refused
+2024-01-15 08:30:05 INFO  Falling back to in-memory cache
+2024-01-15 08:30:06 DEBUG Request received: GET /api/users
+2024-01-15 08:30:06 INFO  Response sent: 200 OK (23ms)
+2024-01-15 08:30:07 WARN  Slow query detected: SELECT * FROM users (850ms)
+2024-01-15 08:30:10 ERROR Unhandled exception in worker thread #3
