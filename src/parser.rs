@@ -32,9 +32,8 @@ static SYSLOG_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^([A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+(\S+)\s+(.+)$").unwrap()
 });
 
-static PLAIN_TIMESTAMP_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}[^\s]*)").unwrap()
-});
+static PLAIN_TIMESTAMP_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}[^\s]*)").unwrap());
 
 static LEVEL_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\b(TRACE|DEBUG|INFO|WARN(?:ING)?|ERROR|FATAL|CRITICAL|SEVERE)\b").unwrap()
@@ -57,7 +56,10 @@ pub fn detect_format(lines: &[String]) -> LogFormat {
         return LogFormat::Json;
     }
 
-    let syslog_count = sample.iter().filter(|line| SYSLOG_RE.is_match(line)).count();
+    let syslog_count = sample
+        .iter()
+        .filter(|line| SYSLOG_RE.is_match(line))
+        .count();
     if syslog_count > sample.len() / 2 {
         return LogFormat::Syslog;
     }
@@ -128,9 +130,7 @@ fn parse_syslog_line(raw: &str) -> ParsedLine {
         (None, raw.to_string())
     };
 
-    let level = LEVEL_RE
-        .find(raw)
-        .and_then(|m| parse_level_str(m.as_str()));
+    let level = LEVEL_RE.find(raw).and_then(|m| parse_level_str(m.as_str()));
 
     ParsedLine {
         raw: raw.to_string(),
@@ -143,13 +143,9 @@ fn parse_syslog_line(raw: &str) -> ParsedLine {
 }
 
 fn parse_plain_line(raw: &str) -> ParsedLine {
-    let timestamp = PLAIN_TIMESTAMP_RE
-        .find(raw)
-        .map(|m| m.as_str().to_string());
+    let timestamp = PLAIN_TIMESTAMP_RE.find(raw).map(|m| m.as_str().to_string());
 
-    let level = LEVEL_RE
-        .find(raw)
-        .and_then(|m| parse_level_str(m.as_str()));
+    let level = LEVEL_RE.find(raw).and_then(|m| parse_level_str(m.as_str()));
 
     ParsedLine {
         raw: raw.to_string(),

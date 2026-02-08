@@ -1,5 +1,5 @@
 use ratatui::Frame;
-use ratatui::layout::{Layout, Constraint, Rect};
+use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
@@ -17,7 +17,8 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         Constraint::Fill(1),
         Constraint::Length(filter_height),
         Constraint::Length(1),
-    ]).areas(area);
+    ])
+    .areas(area);
 
     let content_height = main_area.height.saturating_sub(2) as usize;
     app.set_viewport_height(content_height);
@@ -70,16 +71,18 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         LogFormat::Plain => "Plain",
     };
     let pretty_indicator = if app.is_pretty() { " pretty" } else { "" };
-    let log_view = Paragraph::new(all_display_lines)
-        .block(Block::default().borders(Borders::ALL).title(format!("lumolog [{}{}]", format_label, pretty_indicator)));
+    let log_view = Paragraph::new(all_display_lines).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(format!("lumolog [{}{}]", format_label, pretty_indicator)),
+    );
 
     frame.render_widget(log_view, main_area);
 
     // Render filter bar if in filter mode
     if app.is_filter_mode() {
         let filter_text = format!("/{}", app.filter_pattern());
-        let filter_bar = Paragraph::new(filter_text)
-            .style(Style::default().fg(Color::Cyan));
+        let filter_bar = Paragraph::new(filter_text).style(Style::default().fg(Color::Cyan));
         frame.render_widget(filter_bar, filter_area);
     }
 
@@ -99,14 +102,18 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     ];
 
     if !app.filter_pattern().is_empty() {
-        status_parts.push(format!("Filter: \"{}\" ({} matches)", app.filter_pattern(), total));
+        status_parts.push(format!(
+            "Filter: \"{}\" ({} matches)",
+            app.filter_pattern(),
+            total
+        ));
     }
 
     status_parts.push(format!("{}%", pct));
 
     let status_text = status_parts.join(" | ");
-    let status = Paragraph::new(status_text)
-        .style(Style::default().fg(Color::Black).bg(Color::White));
+    let status =
+        Paragraph::new(status_text).style(Style::default().fg(Color::Black).bg(Color::White));
 
     frame.render_widget(status, status_area);
 
@@ -114,7 +121,10 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     if app.show_help() {
         let help_text = vec![
             Line::from(""),
-            Line::from(Span::styled("  Keybindings", Style::default().add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(
+                "  Keybindings",
+                Style::default().add_modifier(Modifier::BOLD),
+            )),
             Line::from(""),
             Line::from("  q / Esc      Quit"),
             Line::from("  j / k        Scroll down/up"),

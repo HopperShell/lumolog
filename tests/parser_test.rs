@@ -1,4 +1,4 @@
-use lumolog::parser::{detect_format, LogFormat, parse_line, LogLevel};
+use lumolog::parser::{LogFormat, LogLevel, detect_format, parse_line};
 
 #[test]
 fn test_detect_json_format() {
@@ -29,7 +29,8 @@ fn test_detect_plain_format() {
 
 #[test]
 fn test_parse_json_line() {
-    let line = r#"{"timestamp":"2024-01-15T08:30:05Z","level":"error","message":"Failed to connect"}"#;
+    let line =
+        r#"{"timestamp":"2024-01-15T08:30:05Z","level":"error","message":"Failed to connect"}"#;
     let parsed = parse_line(line, LogFormat::Json);
     assert_eq!(parsed.level, Some(LogLevel::Error));
     assert!(parsed.timestamp.is_some());

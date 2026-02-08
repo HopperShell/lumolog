@@ -13,7 +13,10 @@ fn test_error_line_has_red() {
         pretty_json: None,
     };
     let styled = highlight_line(&parsed);
-    let has_red = styled.spans.iter().any(|span| span.style.fg == Some(Color::Red));
+    let has_red = styled
+        .spans
+        .iter()
+        .any(|span| span.style.fg == Some(Color::Red));
     assert!(has_red, "Error lines should contain red spans");
 }
 
@@ -28,7 +31,10 @@ fn test_warn_line_has_yellow() {
         pretty_json: None,
     };
     let styled = highlight_line(&parsed);
-    let has_yellow = styled.spans.iter().any(|span| span.style.fg == Some(Color::Yellow));
+    let has_yellow = styled
+        .spans
+        .iter()
+        .any(|span| span.style.fg == Some(Color::Yellow));
     assert!(has_yellow, "Warn lines should contain yellow spans");
 }
 
@@ -43,7 +49,16 @@ fn test_info_line_is_dimmed() {
         pretty_json: None,
     };
     let styled = highlight_line(&parsed);
-    let has_red = styled.spans.iter().any(|span| span.style.fg == Some(Color::Red));
-    let has_yellow = styled.spans.iter().any(|span| span.style.fg == Some(Color::Yellow));
-    assert!(!has_red && !has_yellow, "Info lines should not be red or yellow");
+    let has_red = styled
+        .spans
+        .iter()
+        .any(|span| span.style.fg == Some(Color::Red));
+    let has_yellow = styled
+        .spans
+        .iter()
+        .any(|span| span.style.fg == Some(Color::Yellow));
+    assert!(
+        !has_red && !has_yellow,
+        "Info lines should not be red or yellow"
+    );
 }

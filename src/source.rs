@@ -46,7 +46,7 @@ impl StdinSource {
     /// For testing: read from any reader.
     pub fn from_reader<R: Read>(reader: R) -> Self {
         let reader = io::BufReader::new(reader);
-        let lines: Vec<String> = reader.lines().filter_map(|l| l.ok()).collect();
+        let lines: Vec<String> = reader.lines().map_while(Result::ok).collect();
         Self { lines }
     }
 

@@ -1,5 +1,5 @@
 use crate::filter::filter_lines;
-use crate::parser::{detect_format, parse_line, LogFormat, ParsedLine};
+use crate::parser::{LogFormat, ParsedLine, detect_format, parse_line};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppMode {
@@ -24,10 +24,8 @@ pub struct App {
 impl App {
     pub fn new(lines: Vec<String>) -> Self {
         let format = detect_format(&lines);
-        let parsed_lines: Vec<ParsedLine> = lines
-            .iter()
-            .map(|line| parse_line(line, format))
-            .collect();
+        let parsed_lines: Vec<ParsedLine> =
+            lines.iter().map(|line| parse_line(line, format)).collect();
         let filtered_indices = (0..parsed_lines.len()).collect();
         Self {
             parsed_lines,
@@ -97,7 +95,10 @@ impl App {
     }
 
     fn clamp_scroll(&mut self) {
-        let max = self.filtered_indices.len().saturating_sub(self.viewport_height);
+        let max = self
+            .filtered_indices
+            .len()
+            .saturating_sub(self.viewport_height);
         if self.scroll_offset > max {
             self.scroll_offset = max;
         }

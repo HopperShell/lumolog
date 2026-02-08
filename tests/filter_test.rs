@@ -1,5 +1,5 @@
 use lumolog::filter::filter_lines;
-use lumolog::parser::{LogFormat, ParsedLine, LogLevel};
+use lumolog::parser::{LogFormat, LogLevel, ParsedLine};
 
 fn make_line(raw: &str, level: Option<LogLevel>) -> ParsedLine {
     ParsedLine {
@@ -14,10 +14,7 @@ fn make_line(raw: &str, level: Option<LogLevel>) -> ParsedLine {
 
 #[test]
 fn test_empty_pattern_returns_all() {
-    let lines = vec![
-        make_line("line one", None),
-        make_line("line two", None),
-    ];
+    let lines = vec![make_line("line one", None), make_line("line two", None)];
     let result = filter_lines(&lines, "");
     assert_eq!(result.len(), 2);
 }

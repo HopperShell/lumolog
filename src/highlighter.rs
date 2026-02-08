@@ -113,10 +113,7 @@ pub fn highlight_line_expanded(parsed: &ParsedLine, pretty: bool) -> Vec<Line<'_
             )));
             // Pretty-printed JSON lines
             for json_line in pretty_json.lines() {
-                lines.push(Line::from(Span::styled(
-                    format!("  {}", json_line),
-                    style,
-                )));
+                lines.push(Line::from(Span::styled(format!("  {}", json_line), style)));
             }
             return lines;
         }

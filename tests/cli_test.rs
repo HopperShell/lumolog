@@ -8,8 +8,7 @@ fn test_missing_file_shows_error() {
         .expect("failed to execute");
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("nonexistent_file.log")
-            || output.status.code() != Some(0),
+        stderr.contains("nonexistent_file.log") || output.status.code() != Some(0),
         "Should error on missing file"
     );
 }

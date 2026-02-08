@@ -14,7 +14,11 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 #[derive(Parser, Debug)]
-#[command(name = "lumolog", version, about = "A terminal log viewer that makes logs readable")]
+#[command(
+    name = "lumolog",
+    version,
+    about = "A terminal log viewer that makes logs readable"
+)]
 struct Cli {
     /// Log file to view. Omit to read from stdin.
     file: Option<PathBuf>,
@@ -57,7 +61,7 @@ fn main() -> anyhow::Result<()> {
         app.set_source_name(
             path.file_name()
                 .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_else(|| path.display().to_string())
+                .unwrap_or_else(|| path.display().to_string()),
         );
     }
 
