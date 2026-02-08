@@ -1,5 +1,6 @@
 use memmap2::Mmap;
 use std::fs::File;
+use std::io::{self, BufRead, Read};
 use std::path::Path;
 
 pub struct FileSource {
@@ -27,5 +28,29 @@ impl FileSource {
 
     pub fn line_count(&self) -> usize {
         self.lines.len()
+    }
+}
+
+pub struct StdinSource {
+    lines: Vec<String>,
+}
+
+impl StdinSource {
+    /// Read all available input from stdin (for non-streaming use).
+    pub fn read_all() -> anyhow::Result<Self> {
+        let stdin = io::stdin();
+        let lines: Vec<String> = stdin.lock().lines().collect::<Result<_, _>>()?;
+        Ok(Self { lines })
+    }
+
+    /// For testing: read from any reader.
+    pub fn from_reader<R: Read>(reader: R) -> Self {
+        let reader = io::BufReader::new(reader);
+        let lines: Vec<String> = reader.lines().filter_map(|l| l.ok()).collect();
+        Self { lines }
+    }
+
+    pub fn lines(&self) -> &[String] {
+        &self.lines
     }
 }

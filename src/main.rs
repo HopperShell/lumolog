@@ -9,6 +9,7 @@ use app::App;
 use clap::Parser;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use source::FileSource;
+use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -32,8 +33,12 @@ fn main() -> anyhow::Result<()> {
             source.lines().to_vec()
         }
         None => {
-            eprintln!("stdin support coming soon. Please provide a file.");
-            std::process::exit(1);
+            if std::io::stdin().is_terminal() {
+                eprintln!("Usage: lumolog <file> or pipe input via stdin");
+                eprintln!("Example: cat app.log | lumolog");
+                std::process::exit(1);
+            }
+            source::StdinSource::read_all()?.lines().to_vec()
         }
     };
 
