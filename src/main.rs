@@ -1,4 +1,5 @@
 mod app;
+mod filter;
 mod highlighter;
 mod parser;
 mod source;
@@ -48,6 +49,19 @@ fn main() -> anyhow::Result<()> {
                     continue;
                 }
                 match key.code {
+                    _ if app.is_filter_mode() => match key.code {
+                        KeyCode::Esc => {
+                            if app.filter_pattern().is_empty() {
+                                app.exit_filter_mode();
+                            } else {
+                                app.clear_filter();
+                            }
+                        }
+                        KeyCode::Enter => app.exit_filter_mode(),
+                        KeyCode::Backspace => app.filter_backspace(),
+                        KeyCode::Char(c) => app.filter_input(c),
+                        _ => {}
+                    },
                     KeyCode::Char('q') | KeyCode::Esc => app.quit(),
                     KeyCode::Down | KeyCode::Char('j') => app.scroll_down(1),
                     KeyCode::Up | KeyCode::Char('k') => app.scroll_up(1),
@@ -55,6 +69,7 @@ fn main() -> anyhow::Result<()> {
                     KeyCode::PageUp => app.page_up(),
                     KeyCode::Char('g') => app.scroll_to_top(),
                     KeyCode::Char('G') => app.scroll_to_bottom(),
+                    KeyCode::Char('/') => app.enter_filter_mode(),
                     _ => {}
                 }
             }

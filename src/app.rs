@@ -1,4 +1,11 @@
+use crate::filter::filter_lines;
 use crate::parser::{detect_format, parse_line, LogFormat, ParsedLine};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AppMode {
+    Normal,
+    Filter,
+}
 
 pub struct App {
     lines: Vec<String>,
@@ -7,6 +14,9 @@ pub struct App {
     scroll_offset: usize,
     viewport_height: usize,
     quit: bool,
+    mode: AppMode,
+    filter_pattern: String,
+    filtered_indices: Vec<usize>,
 }
 
 impl App {
@@ -16,6 +26,7 @@ impl App {
             .iter()
             .map(|line| parse_line(line, format))
             .collect();
+        let filtered_indices = (0..parsed_lines.len()).collect();
         Self {
             lines,
             parsed_lines,
@@ -23,11 +34,18 @@ impl App {
             scroll_offset: 0,
             viewport_height: 24,
             quit: false,
+            mode: AppMode::Normal,
+            filter_pattern: String::new(),
+            filtered_indices,
         }
     }
 
     pub fn lines(&self) -> &[String] {
         &self.lines
+    }
+
+    pub fn total_lines(&self) -> usize {
+        self.filtered_indices.len()
     }
 
     pub fn scroll_offset(&self) -> usize {
@@ -61,8 +79,8 @@ impl App {
     }
 
     pub fn scroll_to_bottom(&mut self) {
-        if self.lines.len() > self.viewport_height {
-            self.scroll_offset = self.lines.len() - self.viewport_height;
+        if self.filtered_indices.len() > self.viewport_height {
+            self.scroll_offset = self.filtered_indices.len() - self.viewport_height;
         }
     }
 
@@ -75,7 +93,7 @@ impl App {
     }
 
     fn clamp_scroll(&mut self) {
-        let max = self.lines.len().saturating_sub(self.viewport_height);
+        let max = self.filtered_indices.len().saturating_sub(self.viewport_height);
         if self.scroll_offset > max {
             self.scroll_offset = max;
         }
@@ -87,13 +105,59 @@ impl App {
         &self.lines[start..end]
     }
 
-    pub fn visible_parsed_lines(&self) -> &[ParsedLine] {
+    pub fn visible_parsed_lines(&self) -> Vec<&ParsedLine> {
         let start = self.scroll_offset;
-        let end = (start + self.viewport_height).min(self.parsed_lines.len());
-        &self.parsed_lines[start..end]
+        let end = (start + self.viewport_height).min(self.filtered_indices.len());
+        self.filtered_indices[start..end]
+            .iter()
+            .map(|&i| &self.parsed_lines[i])
+            .collect()
     }
 
     pub fn format(&self) -> LogFormat {
         self.format
+    }
+
+    // Filter mode methods
+
+    pub fn mode(&self) -> AppMode {
+        self.mode
+    }
+
+    pub fn is_filter_mode(&self) -> bool {
+        self.mode == AppMode::Filter
+    }
+
+    pub fn filter_pattern(&self) -> &str {
+        &self.filter_pattern
+    }
+
+    pub fn enter_filter_mode(&mut self) {
+        self.mode = AppMode::Filter;
+    }
+
+    pub fn exit_filter_mode(&mut self) {
+        self.mode = AppMode::Normal;
+    }
+
+    pub fn clear_filter(&mut self) {
+        self.filter_pattern.clear();
+        self.recompute_filter();
+        self.mode = AppMode::Normal;
+    }
+
+    pub fn filter_input(&mut self, c: char) {
+        self.filter_pattern.push(c);
+        self.recompute_filter();
+    }
+
+    pub fn filter_backspace(&mut self) {
+        self.filter_pattern.pop();
+        self.recompute_filter();
+    }
+
+    fn recompute_filter(&mut self) {
+        self.filtered_indices = filter_lines(&self.parsed_lines, &self.filter_pattern);
+        self.scroll_offset = 0;
     }
 }
