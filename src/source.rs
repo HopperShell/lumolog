@@ -1,7 +1,7 @@
 use memmap2::Mmap;
 use std::fs::File;
-use std::io::{self, BufRead, Read};
-use std::path::Path;
+use std::io::{self, BufRead, Read, Seek, SeekFrom};
+use std::path::{Path, PathBuf};
 
 pub struct FileSource {
     lines: Vec<String>,
@@ -54,5 +54,42 @@ impl StdinSource {
 
     pub fn lines(&self) -> &[String] {
         &self.lines
+    }
+}
+
+pub struct FollowableSource {
+    path: PathBuf,
+    offset: u64,
+}
+
+impl FollowableSource {
+    pub fn new<P: AsRef<Path>>(path: P, initial_offset: u64) -> Self {
+        Self {
+            path: path.as_ref().to_path_buf(),
+            offset: initial_offset,
+        }
+    }
+
+    /// Read any new lines appended since the last read.
+    /// Returns an empty vec if the file hasn't grown.
+    pub fn read_new_lines(&mut self) -> anyhow::Result<Vec<String>> {
+        let mut file = File::open(&self.path)?;
+        let len = file.metadata()?.len();
+
+        if len <= self.offset {
+            return Ok(Vec::new());
+        }
+
+        file.seek(SeekFrom::Start(self.offset))?;
+
+        let mut buf = Vec::with_capacity((len - self.offset) as usize);
+        file.read_to_end(&mut buf)?;
+
+        self.offset = len;
+
+        let text = String::from_utf8_lossy(&buf);
+        let lines: Vec<String> = text.lines().map(String::from).collect();
+
+        Ok(lines)
     }
 }

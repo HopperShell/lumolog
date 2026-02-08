@@ -101,6 +101,14 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         format!("{} lines", total),
     ];
 
+    if app.is_follow_mode() {
+        if app.is_follow_paused() {
+            status_parts.push("PAUSED".to_string());
+        } else {
+            status_parts.push("FOLLOWING".to_string());
+        }
+    }
+
     if !app.filter_pattern().is_empty() {
         status_parts.push(format!(
             "Filter: \"{}\" ({} matches)",
@@ -132,6 +140,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             Line::from("  g / G        Top / Bottom"),
             Line::from("  /            Filter"),
             Line::from("  p            Pretty-print JSON"),
+            Line::from("  Space        Pause/resume (-f mode)"),
             Line::from("  ?            Toggle this help"),
             Line::from(""),
         ];

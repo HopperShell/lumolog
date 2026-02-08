@@ -19,6 +19,8 @@ pub struct App {
     json_pretty: bool,
     show_help: bool,
     source_name: String,
+    follow_mode: bool,
+    follow_paused: bool,
 }
 
 impl App {
@@ -39,6 +41,8 @@ impl App {
             json_pretty: false,
             show_help: false,
             source_name: String::from("stdin"),
+            follow_mode: false,
+            follow_paused: false,
         }
     }
 
@@ -81,9 +85,7 @@ impl App {
     }
 
     pub fn scroll_to_bottom(&mut self) {
-        if self.filtered_indices.len() > self.viewport_height {
-            self.scroll_offset = self.filtered_indices.len() - self.viewport_height;
-        }
+        self.scroll_offset = self.filtered_indices.len();
     }
 
     pub fn quit(&mut self) {
@@ -185,5 +187,50 @@ impl App {
     fn recompute_filter(&mut self) {
         self.filtered_indices = filter_lines(&self.parsed_lines, &self.filter_pattern);
         self.scroll_offset = 0;
+    }
+
+    // Follow mode methods
+
+    /// Returns true if the scroll position is at or past the bottom of the content.
+    pub fn is_at_bottom(&self) -> bool {
+        let max = self
+            .filtered_indices
+            .len()
+            .saturating_sub(self.viewport_height);
+        self.scroll_offset >= max
+    }
+
+    /// Parse and append new lines, preserving scroll position.
+    /// Auto-scrolls to bottom if the user was already at the bottom.
+    pub fn append_lines(&mut self, new_raw: Vec<String>) {
+        let was_at_bottom = self.is_at_bottom();
+
+        for line in &new_raw {
+            let parsed = parse_line(line, self.format);
+            self.parsed_lines.push(parsed);
+        }
+
+        // Recompute filtered indices from scratch (filter may be active)
+        self.filtered_indices = filter_lines(&self.parsed_lines, &self.filter_pattern);
+
+        if was_at_bottom {
+            self.scroll_to_bottom();
+        }
+    }
+
+    pub fn set_follow_mode(&mut self, enabled: bool) {
+        self.follow_mode = enabled;
+    }
+
+    pub fn is_follow_mode(&self) -> bool {
+        self.follow_mode
+    }
+
+    pub fn toggle_follow_pause(&mut self) {
+        self.follow_paused = !self.follow_paused;
+    }
+
+    pub fn is_follow_paused(&self) -> bool {
+        self.follow_paused
     }
 }

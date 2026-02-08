@@ -8,7 +8,7 @@ mod ui;
 use app::App;
 use clap::Parser;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
-use source::FileSource;
+use source::{FileSource, FollowableSource};
 use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -22,10 +22,19 @@ use std::time::Duration;
 struct Cli {
     /// Log file to view. Omit to read from stdin.
     file: Option<PathBuf>,
+
+    /// Follow the file for new lines (like tail -f). Requires a file argument.
+    #[arg(short, long)]
+    follow: bool,
 }
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+
+    if cli.follow && cli.file.is_none() {
+        eprintln!("Error: --follow requires a file argument");
+        std::process::exit(1);
+    }
 
     let lines = match &cli.file {
         Some(path) => {
@@ -46,6 +55,15 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
+    // Set up follow source if --follow was requested
+    let mut follow_source = if cli.follow {
+        let path = cli.file.as_ref().unwrap();
+        let initial_offset = std::fs::metadata(path)?.len();
+        Some(FollowableSource::new(path, initial_offset))
+    } else {
+        None
+    };
+
     let mut terminal = ratatui::init();
 
     // Ensure terminal is restored even on panic
@@ -56,6 +74,8 @@ fn main() -> anyhow::Result<()> {
     }));
 
     let mut app = App::new(lines);
+    app.scroll_to_bottom();
+    app.set_follow_mode(cli.follow);
 
     if let Some(ref path) = cli.file {
         app.set_source_name(
@@ -98,6 +118,9 @@ fn main() -> anyhow::Result<()> {
                         KeyCode::Char('q') | KeyCode::Esc => app.quit(),
                         KeyCode::Down | KeyCode::Char('j') => app.scroll_down(1),
                         KeyCode::Up | KeyCode::Char('k') => app.scroll_up(1),
+                        KeyCode::Char(' ') if app.is_follow_mode() => {
+                            app.toggle_follow_pause()
+                        }
                         KeyCode::PageDown | KeyCode::Char(' ') => app.page_down(),
                         KeyCode::PageUp => app.page_up(),
                         KeyCode::Char('g') => app.scroll_to_top(),
@@ -107,6 +130,16 @@ fn main() -> anyhow::Result<()> {
                         KeyCode::Char('?') => app.toggle_help(),
                         _ => {}
                     }
+                }
+            }
+        }
+
+        // Poll for new lines in follow mode (unless paused)
+        if !app.is_follow_paused() {
+            if let Some(ref mut source) = follow_source {
+                let new_lines = source.read_new_lines()?;
+                if !new_lines.is_empty() {
+                    app.append_lines(new_lines);
                 }
             }
         }
