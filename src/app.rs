@@ -17,6 +17,7 @@ pub struct App {
     mode: AppMode,
     filter_pattern: String,
     filtered_indices: Vec<usize>,
+    json_pretty: bool,
 }
 
 impl App {
@@ -37,6 +38,7 @@ impl App {
             mode: AppMode::Normal,
             filter_pattern: String::new(),
             filtered_indices,
+            json_pretty: false,
         }
     }
 
@@ -116,6 +118,16 @@ impl App {
 
     pub fn format(&self) -> LogFormat {
         self.format
+    }
+
+    // Pretty-print methods
+
+    pub fn toggle_pretty(&mut self) {
+        self.json_pretty = !self.json_pretty;
+    }
+
+    pub fn is_pretty(&self) -> bool {
+        self.json_pretty
     }
 
     // Filter mode methods

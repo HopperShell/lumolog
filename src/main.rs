@@ -75,6 +75,7 @@ fn main() -> anyhow::Result<()> {
                     KeyCode::Char('g') => app.scroll_to_top(),
                     KeyCode::Char('G') => app.scroll_to_bottom(),
                     KeyCode::Char('/') => app.enter_filter_mode(),
+                    KeyCode::Char('p') => app.toggle_pretty(),
                     _ => {}
                 }
             }

@@ -87,3 +87,39 @@ fn highlight_syslog_line(parsed: &ParsedLine) -> Line<'_> {
     }
     Line::from(Span::styled(parsed.raw.clone(), style))
 }
+
+/// Returns one or more Lines for a parsed line.
+/// In pretty mode for JSON, returns the expanded multi-line JSON.
+/// For everything else (or when pretty=false), returns a single line.
+pub fn highlight_line_expanded(parsed: &ParsedLine, pretty: bool) -> Vec<Line<'_>> {
+    if pretty && parsed.format == LogFormat::Json {
+        if let Some(ref pretty_json) = parsed.pretty_json {
+            let style = level_style(parsed.level);
+            let level_str = match parsed.level {
+                Some(LogLevel::Fatal) => "FTL",
+                Some(LogLevel::Error) => "ERR",
+                Some(LogLevel::Warn) => "WRN",
+                Some(LogLevel::Info) => "INF",
+                Some(LogLevel::Debug) => "DBG",
+                Some(LogLevel::Trace) => "TRC",
+                None => "???",
+            };
+
+            let mut lines = Vec::new();
+            // First line: level badge + separator
+            lines.push(Line::from(Span::styled(
+                format!("--- [{}] ", level_str),
+                style.add_modifier(Modifier::BOLD),
+            )));
+            // Pretty-printed JSON lines
+            for json_line in pretty_json.lines() {
+                lines.push(Line::from(Span::styled(
+                    format!("  {}", json_line),
+                    style,
+                )));
+            }
+            return lines;
+        }
+    }
+    vec![highlight_line(parsed)]
+}

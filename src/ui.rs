@@ -5,7 +5,7 @@ use ratatui::text::Line;
 use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crate::app::App;
-use crate::highlighter::highlight_line;
+use crate::highlighter::{highlight_line, highlight_line_expanded};
 use crate::parser::LogFormat;
 
 pub fn render(frame: &mut Frame, app: &mut App) {
@@ -22,19 +22,26 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     let content_height = main_area.height.saturating_sub(2) as usize;
     app.set_viewport_height(content_height);
 
-    let visible: Vec<Line> = app
-        .visible_parsed_lines()
-        .iter()
-        .map(|parsed| highlight_line(parsed))
-        .collect();
+    let all_display_lines: Vec<Line> = if app.is_pretty() {
+        app.visible_parsed_lines()
+            .iter()
+            .flat_map(|parsed| highlight_line_expanded(parsed, true))
+            .collect()
+    } else {
+        app.visible_parsed_lines()
+            .iter()
+            .map(|parsed| highlight_line(parsed))
+            .collect()
+    };
 
     let format_label = match app.format() {
         LogFormat::Json => "JSON",
         LogFormat::Syslog => "Syslog",
         LogFormat::Plain => "Plain",
     };
-    let log_view = Paragraph::new(visible)
-        .block(Block::default().borders(Borders::ALL).title(format!("lumolog [{}]", format_label)));
+    let pretty_indicator = if app.is_pretty() { " pretty" } else { "" };
+    let log_view = Paragraph::new(all_display_lines)
+        .block(Block::default().borders(Borders::ALL).title(format!("lumolog [{}{}]", format_label, pretty_indicator)));
 
     frame.render_widget(log_view, main_area);
 
