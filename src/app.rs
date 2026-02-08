@@ -18,6 +18,8 @@ pub struct App {
     filter_pattern: String,
     filtered_indices: Vec<usize>,
     json_pretty: bool,
+    show_help: bool,
+    source_name: String,
 }
 
 impl App {
@@ -39,6 +41,8 @@ impl App {
             filter_pattern: String::new(),
             filtered_indices,
             json_pretty: false,
+            show_help: false,
+            source_name: String::from("stdin"),
         }
     }
 
@@ -116,6 +120,16 @@ impl App {
             .collect()
     }
 
+    /// Returns (original_line_number, &ParsedLine) pairs for visible lines
+    pub fn visible_parsed_lines_numbered(&self) -> Vec<(usize, &ParsedLine)> {
+        let start = self.scroll_offset;
+        let end = (start + self.viewport_height).min(self.filtered_indices.len());
+        self.filtered_indices[start..end]
+            .iter()
+            .map(|&i| (i + 1, &self.parsed_lines[i])) // 1-indexed
+            .collect()
+    }
+
     pub fn format(&self) -> LogFormat {
         self.format
     }
@@ -128,6 +142,26 @@ impl App {
 
     pub fn is_pretty(&self) -> bool {
         self.json_pretty
+    }
+
+    // Help overlay methods
+
+    pub fn toggle_help(&mut self) {
+        self.show_help = !self.show_help;
+    }
+
+    pub fn show_help(&self) -> bool {
+        self.show_help
+    }
+
+    // Source name methods
+
+    pub fn set_source_name(&mut self, name: String) {
+        self.source_name = name;
+    }
+
+    pub fn source_name(&self) -> &str {
+        &self.source_name
     }
 
     // Filter mode methods

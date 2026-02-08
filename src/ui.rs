@@ -1,8 +1,8 @@
 use ratatui::Frame;
-use ratatui::layout::{Layout, Constraint};
-use ratatui::style::{Color, Style};
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui::layout::{Layout, Constraint, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
 use crate::app::App;
 use crate::highlighter::{highlight_line, highlight_line_expanded};
@@ -22,15 +22,45 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     let content_height = main_area.height.saturating_sub(2) as usize;
     app.set_viewport_height(content_height);
 
+    // Compute line number width from total line count
+    let line_num_width = format!("{}", app.total_lines()).len().max(3);
+
     let all_display_lines: Vec<Line> = if app.is_pretty() {
-        app.visible_parsed_lines()
+        app.visible_parsed_lines_numbered()
             .iter()
-            .flat_map(|parsed| highlight_line_expanded(parsed, true))
+            .flat_map(|(line_num, parsed)| {
+                let mut expanded = highlight_line_expanded(parsed, true);
+                // Add line number prefix only to the first line of each expanded group
+                if let Some(first) = expanded.first_mut() {
+                    let prefix = Span::styled(
+                        format!("{:>width$} ", line_num, width = line_num_width),
+                        Style::default().fg(Color::DarkGray),
+                    );
+                    first.spans.insert(0, prefix);
+                }
+                // Add blank prefix to continuation lines for alignment
+                for line in expanded.iter_mut().skip(1) {
+                    let blank_prefix = Span::styled(
+                        format!("{:>width$} ", "", width = line_num_width),
+                        Style::default().fg(Color::DarkGray),
+                    );
+                    line.spans.insert(0, blank_prefix);
+                }
+                expanded
+            })
             .collect()
     } else {
-        app.visible_parsed_lines()
+        app.visible_parsed_lines_numbered()
             .iter()
-            .map(|parsed| highlight_line(parsed))
+            .map(|(line_num, parsed)| {
+                let prefix = Span::styled(
+                    format!("{:>width$} ", line_num, width = line_num_width),
+                    Style::default().fg(Color::DarkGray),
+                );
+                let mut highlighted = highlight_line(parsed);
+                highlighted.spans.insert(0, prefix);
+                highlighted
+            })
             .collect()
     };
 
@@ -62,22 +92,52 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         ((offset + content_height).min(total) * 100) / total
     };
 
-    let filter_info = if !app.filter_pattern().is_empty() {
-        format!(" | Filter: \"{}\" ({} matches)", app.filter_pattern(), app.total_lines())
-    } else {
-        String::new()
-    };
+    let mut status_parts = vec![
+        format!(" {}", app.source_name()),
+        format!("{}", format_label),
+        format!("{} lines", total),
+    ];
 
-    let status_text = format!(
-        " Line {}-{} of {} ({}%){} | q:quit  j/k:scroll  PgUp/PgDn  g/G:top/bottom  /:filter",
-        offset + 1,
-        (offset + content_height).min(total),
-        total,
-        pct,
-        filter_info
-    );
+    if !app.filter_pattern().is_empty() {
+        status_parts.push(format!("Filter: \"{}\" ({} matches)", app.filter_pattern(), total));
+    }
+
+    status_parts.push(format!("{}%", pct));
+
+    let status_text = status_parts.join(" | ");
     let status = Paragraph::new(status_text)
         .style(Style::default().fg(Color::Black).bg(Color::White));
 
     frame.render_widget(status, status_area);
+
+    // Help overlay
+    if app.show_help() {
+        let help_text = vec![
+            Line::from(""),
+            Line::from(Span::styled("  Keybindings", Style::default().add_modifier(Modifier::BOLD))),
+            Line::from(""),
+            Line::from("  q / Esc      Quit"),
+            Line::from("  j / k        Scroll down/up"),
+            Line::from("  PgUp / PgDn  Page up/down"),
+            Line::from("  g / G        Top / Bottom"),
+            Line::from("  /            Filter"),
+            Line::from("  p            Pretty-print JSON"),
+            Line::from("  ?            Toggle this help"),
+            Line::from(""),
+        ];
+
+        // Center the overlay
+        let help_width = 40u16;
+        let help_height = help_text.len() as u16 + 2; // +2 for border
+        let x = (area.width.saturating_sub(help_width)) / 2;
+        let y = (area.height.saturating_sub(help_height)) / 2;
+        let help_area = Rect::new(x, y, help_width, help_height);
+
+        let help_block = Paragraph::new(help_text)
+            .block(Block::default().borders(Borders::ALL).title("Help"))
+            .style(Style::default().fg(Color::White).bg(Color::Black));
+
+        frame.render_widget(Clear, help_area);
+        frame.render_widget(help_block, help_area);
+    }
 }

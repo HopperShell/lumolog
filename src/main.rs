@@ -45,6 +45,14 @@ fn main() -> anyhow::Result<()> {
     let mut terminal = ratatui::init();
     let mut app = App::new(lines);
 
+    if let Some(ref path) = cli.file {
+        app.set_source_name(
+            path.file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| path.display().to_string())
+        );
+    }
+
     loop {
         terminal.draw(|frame| ui::render(frame, &mut app))?;
 
@@ -53,30 +61,40 @@ fn main() -> anyhow::Result<()> {
                 if key.kind != KeyEventKind::Press {
                     continue;
                 }
-                match key.code {
-                    _ if app.is_filter_mode() => match key.code {
-                        KeyCode::Esc => {
-                            if app.filter_pattern().is_empty() {
-                                app.exit_filter_mode();
-                            } else {
-                                app.clear_filter();
+
+                // When help is shown, any key dismisses it (except q which still quits)
+                if app.show_help() {
+                    match key.code {
+                        KeyCode::Char('q') | KeyCode::Esc => app.quit(),
+                        _ => app.toggle_help(),
+                    }
+                } else {
+                    match key.code {
+                        _ if app.is_filter_mode() => match key.code {
+                            KeyCode::Esc => {
+                                if app.filter_pattern().is_empty() {
+                                    app.exit_filter_mode();
+                                } else {
+                                    app.clear_filter();
+                                }
                             }
-                        }
-                        KeyCode::Enter => app.exit_filter_mode(),
-                        KeyCode::Backspace => app.filter_backspace(),
-                        KeyCode::Char(c) => app.filter_input(c),
+                            KeyCode::Enter => app.exit_filter_mode(),
+                            KeyCode::Backspace => app.filter_backspace(),
+                            KeyCode::Char(c) => app.filter_input(c),
+                            _ => {}
+                        },
+                        KeyCode::Char('q') | KeyCode::Esc => app.quit(),
+                        KeyCode::Down | KeyCode::Char('j') => app.scroll_down(1),
+                        KeyCode::Up | KeyCode::Char('k') => app.scroll_up(1),
+                        KeyCode::PageDown | KeyCode::Char(' ') => app.page_down(),
+                        KeyCode::PageUp => app.page_up(),
+                        KeyCode::Char('g') => app.scroll_to_top(),
+                        KeyCode::Char('G') => app.scroll_to_bottom(),
+                        KeyCode::Char('/') => app.enter_filter_mode(),
+                        KeyCode::Char('p') => app.toggle_pretty(),
+                        KeyCode::Char('?') => app.toggle_help(),
                         _ => {}
-                    },
-                    KeyCode::Char('q') | KeyCode::Esc => app.quit(),
-                    KeyCode::Down | KeyCode::Char('j') => app.scroll_down(1),
-                    KeyCode::Up | KeyCode::Char('k') => app.scroll_up(1),
-                    KeyCode::PageDown | KeyCode::Char(' ') => app.page_down(),
-                    KeyCode::PageUp => app.page_up(),
-                    KeyCode::Char('g') => app.scroll_to_top(),
-                    KeyCode::Char('G') => app.scroll_to_bottom(),
-                    KeyCode::Char('/') => app.enter_filter_mode(),
-                    KeyCode::Char('p') => app.toggle_pretty(),
-                    _ => {}
+                    }
                 }
             }
         }
