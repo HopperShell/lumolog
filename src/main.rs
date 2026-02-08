@@ -1,4 +1,6 @@
 mod app;
+mod highlighter;
+mod parser;
 mod source;
 mod ui;
 

@@ -5,6 +5,8 @@ use ratatui::text::Line;
 use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crate::app::App;
+use crate::highlighter::highlight_line;
+use crate::parser::LogFormat;
 
 pub fn render(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
@@ -18,13 +20,18 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     app.set_viewport_height(content_height);
 
     let visible: Vec<Line> = app
-        .visible_lines()
+        .visible_parsed_lines()
         .iter()
-        .map(|line| Line::raw(line.as_str()))
+        .map(|parsed| highlight_line(parsed))
         .collect();
 
+    let format_label = match app.format() {
+        LogFormat::Json => "JSON",
+        LogFormat::Syslog => "Syslog",
+        LogFormat::Plain => "Plain",
+    };
     let log_view = Paragraph::new(visible)
-        .block(Block::default().borders(Borders::ALL).title("lumolog"));
+        .block(Block::default().borders(Borders::ALL).title(format!("lumolog [{}]", format_label)));
 
     frame.render_widget(log_view, main_area);
 

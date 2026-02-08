@@ -1,5 +1,9 @@
+use crate::parser::{detect_format, parse_line, LogFormat, ParsedLine};
+
 pub struct App {
     lines: Vec<String>,
+    parsed_lines: Vec<ParsedLine>,
+    format: LogFormat,
     scroll_offset: usize,
     viewport_height: usize,
     quit: bool,
@@ -7,8 +11,15 @@ pub struct App {
 
 impl App {
     pub fn new(lines: Vec<String>) -> Self {
+        let format = detect_format(&lines);
+        let parsed_lines: Vec<ParsedLine> = lines
+            .iter()
+            .map(|line| parse_line(line, format))
+            .collect();
         Self {
             lines,
+            parsed_lines,
+            format,
             scroll_offset: 0,
             viewport_height: 24,
             quit: false,
@@ -74,5 +85,15 @@ impl App {
         let start = self.scroll_offset;
         let end = (start + self.viewport_height).min(self.lines.len());
         &self.lines[start..end]
+    }
+
+    pub fn visible_parsed_lines(&self) -> &[ParsedLine] {
+        let start = self.scroll_offset;
+        let end = (start + self.viewport_height).min(self.parsed_lines.len());
+        &self.parsed_lines[start..end]
+    }
+
+    pub fn format(&self) -> LogFormat {
+        self.format
     }
 }
