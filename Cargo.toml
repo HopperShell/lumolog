@@ -11,7 +11,6 @@ memmap2 = "0.9.9"
 ratatui = "0.30.0"
 regex = "1.12.3"
 serde_json = "1.0.149"
-unicode-width = "0.2.2"
 
 [dev-dependencies]
 tempfile = "3.24.0"

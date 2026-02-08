@@ -23,7 +23,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     app.set_viewport_height(content_height);
 
     // Compute line number width from total line count
-    let line_num_width = format!("{}", app.total_lines()).len().max(3);
+    let line_num_width = format!("{}", app.total_lines_unfiltered()).len().max(3);
 
     let all_display_lines: Vec<Line> = if app.is_pretty() {
         app.visible_parsed_lines_numbered()

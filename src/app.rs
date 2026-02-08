@@ -8,7 +8,6 @@ pub enum AppMode {
 }
 
 pub struct App {
-    lines: Vec<String>,
     parsed_lines: Vec<ParsedLine>,
     format: LogFormat,
     scroll_offset: usize,
@@ -31,7 +30,6 @@ impl App {
             .collect();
         let filtered_indices = (0..parsed_lines.len()).collect();
         Self {
-            lines,
             parsed_lines,
             format,
             scroll_offset: 0,
@@ -46,12 +44,12 @@ impl App {
         }
     }
 
-    pub fn lines(&self) -> &[String] {
-        &self.lines
-    }
-
     pub fn total_lines(&self) -> usize {
         self.filtered_indices.len()
+    }
+
+    pub fn total_lines_unfiltered(&self) -> usize {
+        self.parsed_lines.len()
     }
 
     pub fn scroll_offset(&self) -> usize {
@@ -105,21 +103,6 @@ impl App {
         }
     }
 
-    pub fn visible_lines(&self) -> &[String] {
-        let start = self.scroll_offset;
-        let end = (start + self.viewport_height).min(self.lines.len());
-        &self.lines[start..end]
-    }
-
-    pub fn visible_parsed_lines(&self) -> Vec<&ParsedLine> {
-        let start = self.scroll_offset;
-        let end = (start + self.viewport_height).min(self.filtered_indices.len());
-        self.filtered_indices[start..end]
-            .iter()
-            .map(|&i| &self.parsed_lines[i])
-            .collect()
-    }
-
     /// Returns (original_line_number, &ParsedLine) pairs for visible lines
     pub fn visible_parsed_lines_numbered(&self) -> Vec<(usize, &ParsedLine)> {
         let start = self.scroll_offset;
@@ -165,10 +148,6 @@ impl App {
     }
 
     // Filter mode methods
-
-    pub fn mode(&self) -> AppMode {
-        self.mode
-    }
 
     pub fn is_filter_mode(&self) -> bool {
         self.mode == AppMode::Filter

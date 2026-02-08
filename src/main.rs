@@ -43,6 +43,14 @@ fn main() -> anyhow::Result<()> {
     };
 
     let mut terminal = ratatui::init();
+
+    // Ensure terminal is restored even on panic
+    let original_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        ratatui::restore();
+        original_hook(panic_info);
+    }));
+
     let mut app = App::new(lines);
 
     if let Some(ref path) = cli.file {
