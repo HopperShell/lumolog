@@ -1,0 +1,30 @@
+Jan 15 08:30:01 firewall01 sshd[1234]: Accepted publickey for admin from 192.168.1.100 port 52413
+Jan 15 08:30:02 firewall01 sshd[1235]: Failed password for root from 45.33.32.156 port 38920
+Jan 15 08:30:03 firewall01 kernel: [  123.456] nf_conntrack: table full, dropping packet from 203.0.113.50
+Jan 15 08:30:04 firewall01 sshd[1236]: Failed password for admin from 45.33.32.156 port 38921
+Jan 15 08:30:05 firewall01 nginx[800]: 10.0.0.5 - - "GET /api/v1/users HTTP/1.1" 200 1234
+Jan 15 08:30:06 firewall01 sshd[1237]: Accepted password for deploy from 10.0.0.12 port 44100
+Jan 15 08:30:07 firewall01 postfix/smtpd[900]: connect from unknown[185.220.101.34]
+Jan 15 08:30:08 firewall01 sshd[1238]: Failed password for root from 185.220.101.34 port 55012
+Jan 15 08:30:09 firewall01 nginx[800]: 172.16.0.3 - - "POST /login HTTP/1.1" 401 89
+Jan 15 08:30:10 firewall01 sshd[1239]: Failed password for root from 45.33.32.156 port 38922
+Jan 15 08:30:11 firewall01 kernel: [  124.001] TCP: request_sock_TCP: Possible SYN flooding on port 22. Sending cookies. Check SNMP counters. src=91.240.118.222
+Jan 15 08:30:12 firewall01 sshd[1240]: Invalid user test from 91.240.118.222 port 47820
+Jan 15 08:30:13 firewall01 nginx[800]: 10.0.0.5 - - "GET /api/v1/health HTTP/1.1" 200 15
+Jan 15 08:30:14 firewall01 sshd[1241]: Failed password for invalid user test from 91.240.118.222 port 47820
+Jan 15 08:30:15 firewall01 postfix/smtpd[900]: disconnect from unknown[185.220.101.34]
+Jan 15 08:30:16 firewall01 sshd[1242]: Accepted publickey for admin from 192.168.1.100 port 52500
+Jan 15 08:30:17 firewall01 nginx[800]: 203.0.113.50 - - "GET /admin HTTP/1.1" 403 162
+Jan 15 08:30:18 firewall01 fail2ban[1500]: WARNING [sshd] Ban 45.33.32.156
+Jan 15 08:30:19 firewall01 fail2ban[1500]: WARNING [sshd] Ban 91.240.118.222
+Jan 15 08:30:20 firewall01 sshd[1243]: Connection closed by 185.220.101.34 port 55012 [preauth]
+Jan 15 08:30:21 firewall01 nginx[800]: 10.0.0.12 - - "PUT /api/v1/deploy HTTP/1.1" 200 44
+Jan 15 08:30:22 firewall01 sshd[1244]: Failed password for root from 116.31.116.15 port 60122
+Jan 15 08:30:23 firewall01 kernel: [  125.500] net_ratelimit: 8 callbacks suppressed from 116.31.116.15
+Jan 15 08:30:24 firewall01 fail2ban[1500]: WARNING [sshd] Ban 116.31.116.15
+Jan 15 08:30:25 firewall01 nginx[800]: 172.16.0.3 - - "GET /dashboard HTTP/1.1" 200 8832
+Jan 15 08:30:26 firewall01 sshd[1245]: Accepted publickey for deploy from 10.0.0.12 port 44200
+Jan 15 08:30:27 firewall01 nginx[800]: 203.0.113.50 - - "GET /.env HTTP/1.1" 404 0
+Jan 15 08:30:28 firewall01 sshd[1246]: error: maximum authentication attempts exceeded for root from 116.31.116.15 port 60123
+Jan 15 08:30:29 firewall01 nginx[800]: 10.0.0.5 - - "DELETE /api/v1/cache HTTP/1.1" 204 0
+Jan 15 08:30:30 firewall01 postfix/smtpd[900]: connect from mail.example.com[93.184.216.34]

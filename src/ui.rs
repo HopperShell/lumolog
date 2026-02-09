@@ -4,8 +4,10 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
-use crate::app::App;
-use crate::highlighter::{highlight_line, highlight_line_expanded};
+use crate::app::{App, AppMode};
+use crate::highlighter::{
+    TokenKind, highlight_line, highlight_line_expanded, tokenize_with_metadata,
+};
 use crate::parser::LogFormat;
 use crate::parser::LogLevel;
 
@@ -157,6 +159,50 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 
     frame.render_widget(status, status_area);
 
+    // Context menu overlay
+    if let Some(menu) = app.context_menu() {
+        let items: Vec<Line> = menu
+            .items
+            .iter()
+            .enumerate()
+            .map(|(i, action)| {
+                let style = if i == menu.selected {
+                    Style::default()
+                        .fg(Color::Black)
+                        .bg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::White)
+                };
+                Line::from(Span::styled(format!(" {} ", action.label()), style))
+            })
+            .collect();
+
+        let menu_width = menu
+            .items
+            .iter()
+            .map(|a| a.label().len() as u16 + 2) // +2 for padding
+            .max()
+            .unwrap_or(20)
+            + 2; // +2 for border
+        let menu_height = menu.items.len() as u16 + 2; // +2 for border
+
+        // Clamp position to viewport
+        let x = menu.position.0.min(area.width.saturating_sub(menu_width));
+        let y = menu.position.1.min(area.height.saturating_sub(menu_height));
+        let menu_area = Rect::new(x, y, menu_width, menu_height);
+
+        let menu_block = Paragraph::new(items).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Actions")
+                .style(Style::default().fg(Color::White).bg(Color::DarkGray)),
+        );
+
+        frame.render_widget(Clear, menu_area);
+        frame.render_widget(menu_block, menu_area);
+    }
+
     // Help overlay
     if app.show_help() {
         let help_text = vec![
@@ -191,5 +237,158 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 
         frame.render_widget(Clear, help_area);
         frame.render_widget(help_block, help_area);
+    }
+}
+
+/// Given a click coordinate, determine which token (if any) was clicked.
+/// Returns the `TokenKind` and the raw matched text.
+pub fn token_at_position(
+    app: &App,
+    column: u16,
+    row: u16,
+    area: Rect,
+) -> Option<(TokenKind, String)> {
+    // Recompute the main_area layout the same way render() does
+    let filter_height = if app.mode() == AppMode::Filter { 1 } else { 0 };
+    let [main_area, _, _] = Layout::vertical([
+        Constraint::Fill(1),
+        Constraint::Length(filter_height),
+        Constraint::Length(1),
+    ])
+    .areas(area);
+
+    // The main content area has a 1-cell border on all sides
+    let content_x = main_area.x + 1;
+    let content_y = main_area.y + 1;
+    let content_width = main_area.width.saturating_sub(2);
+    let content_height = main_area.height.saturating_sub(2);
+
+    // Check if click is within content bounds
+    if column < content_x
+        || column >= content_x + content_width
+        || row < content_y
+        || row >= content_y + content_height
+    {
+        return None;
+    }
+
+    let click_row = (row - content_y) as usize;
+    let click_col = (column - content_x) as usize;
+
+    let line_num_width = format!("{}", app.total_lines_unfiltered()).len().max(3);
+    let prefix_width = line_num_width + 1; // +1 for the trailing space
+
+    if click_col < prefix_width {
+        return None; // Clicked on line number
+    }
+
+    let text_col = click_col - prefix_width;
+
+    // Determine which parsed line corresponds to this row
+    let visible = app.visible_parsed_lines_numbered();
+
+    if app.is_pretty() {
+        // In pretty mode, each parsed line may expand to multiple display rows
+        let mut display_row = 0;
+        for (_line_num, parsed) in &visible {
+            let expanded = highlight_line_expanded(parsed, true);
+            let row_count = expanded.len();
+            if click_row < display_row + row_count {
+                // The click is within this parsed line's expanded rows
+                // For pretty mode, only the raw message on each sub-line is clickable
+                // We use the raw text of this line for tokenization
+                let base_style = Style::default();
+                let tokens = tokenize_with_metadata(&parsed.message, base_style);
+                return find_token_at_col(text_col, &tokens);
+            }
+            display_row += row_count;
+        }
+    } else {
+        // Non-pretty: 1 row per visible line
+        if click_row < visible.len() {
+            let (_line_num, parsed) = &visible[click_row];
+            // Tokenize the text portion (after timestamp prefix for plain/syslog, message for JSON)
+            let base_style = Style::default();
+            let text_to_tokenize = get_tokenizable_text(parsed);
+            let ts_prefix_len = get_timestamp_prefix_len(parsed);
+            let tokens = tokenize_with_metadata(text_to_tokenize, base_style);
+
+            // Adjust column for any prefix spans (level badge, timestamp) that render() adds
+            let extra_prefix = get_highlight_prefix_len(parsed);
+            let adjusted_col = if text_col >= extra_prefix + ts_prefix_len {
+                text_col - extra_prefix - ts_prefix_len
+            } else {
+                return None; // Clicked on level/timestamp prefix
+            };
+
+            return find_token_at_col(adjusted_col, &tokens);
+        }
+    }
+
+    None
+}
+
+/// Find which token in the metadata list covers the given column offset.
+fn find_token_at_col(
+    col: usize,
+    tokens: &[(ratatui::text::Span<'static>, Option<TokenKind>, String)],
+) -> Option<(TokenKind, String)> {
+    let mut pos = 0;
+    for (_span, kind, raw) in tokens {
+        let end = pos + raw.len();
+        if col >= pos && col < end {
+            return kind.map(|k| (k, raw.clone()));
+        }
+        pos = end;
+    }
+    None
+}
+
+/// Get the text that `tokenize_with_patterns` is called with for a parsed line.
+fn get_tokenizable_text(parsed: &crate::parser::ParsedLine) -> &str {
+    match parsed.format {
+        LogFormat::Json => &parsed.message,
+        LogFormat::Plain | LogFormat::Syslog => {
+            if let Some(ref ts) = parsed.timestamp {
+                if let Some(pos) = parsed.raw.find(ts.as_str()) {
+                    let ts_end = pos + ts.len();
+                    return &parsed.raw[ts_end..];
+                }
+            }
+            &parsed.raw
+        }
+    }
+}
+
+/// Returns the character length of the timestamp prefix for plain/syslog lines.
+fn get_timestamp_prefix_len(parsed: &crate::parser::ParsedLine) -> usize {
+    match parsed.format {
+        LogFormat::Json => 0, // JSON timestamp is handled in extra prefix
+        LogFormat::Plain | LogFormat::Syslog => {
+            if let Some(ref ts) = parsed.timestamp {
+                if let Some(pos) = parsed.raw.find(ts.as_str()) {
+                    return pos + ts.len();
+                }
+            }
+            0
+        }
+    }
+}
+
+/// Returns the character length of extra prefix spans added by highlight_*_line.
+/// For JSON: "[LVL] " (6) + timestamp + space if present.
+/// For plain/syslog: 0 (timestamp is part of raw text, handled by ts_prefix_len).
+fn get_highlight_prefix_len(parsed: &crate::parser::ParsedLine) -> usize {
+    match parsed.format {
+        LogFormat::Json => {
+            let level_len = 6; // "[XXX] "
+            let ts_len = parsed
+                .timestamp
+                .as_ref()
+                .map(|ts| ts.len() + 1) // +1 for trailing space
+                .unwrap_or(0);
+            level_len + ts_len
+        }
+        LogFormat::Plain | LogFormat::Syslog => 0,
     }
 }

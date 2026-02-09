@@ -128,13 +128,31 @@ fn date_style() -> Style {
 }
 
 // ---------------------------------------------------------------------------
+// Token types (for click-to-action)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TokenKind {
+    Url,
+    Ip,
+    Uuid,
+    Path,
+    HttpMethod,
+    Process,
+    KeyValue,
+    QuotedString,
+    Other,
+}
+
+// ---------------------------------------------------------------------------
 // Inline pattern tokenizer
 // ---------------------------------------------------------------------------
 
-struct MatchRegion {
-    start: usize,
-    end: usize,
-    style: Style,
+pub struct MatchRegion {
+    pub start: usize,
+    pub end: usize,
+    pub style: Style,
+    pub kind: TokenKind,
 }
 
 fn overlaps(existing: &[MatchRegion], new: &MatchRegion) -> bool {
@@ -153,12 +171,19 @@ fn is_valid_ipv4(caps: &regex::Captures) -> bool {
 }
 
 /// Helper: collect simple regex matches into regions.
-fn collect_matches(regex: &Regex, text: &str, style: Style, regions: &mut Vec<MatchRegion>) {
+fn collect_matches(
+    regex: &Regex,
+    text: &str,
+    style: Style,
+    kind: TokenKind,
+    regions: &mut Vec<MatchRegion>,
+) {
     for m in regex.find_iter(text) {
         let region = MatchRegion {
             start: m.start(),
             end: m.end(),
             style,
+            kind,
         };
         if !overlaps(regions, &region) {
             regions.push(region);
@@ -166,22 +191,21 @@ fn collect_matches(regex: &Regex, text: &str, style: Style, regions: &mut Vec<Ma
     }
 }
 
-/// Split `text` into styled spans, highlighting recognized patterns inline.
-/// Unrecognized portions receive `base_style`.
-fn tokenize_with_patterns(text: &str, base_style: Style) -> Vec<Span<'static>> {
+/// Collect all recognized pattern regions from `text`.
+fn collect_all_regions(text: &str) -> Vec<MatchRegion> {
     let mut regions: Vec<MatchRegion> = Vec::new();
 
     // Priority order: more specific / structurally significant patterns first.
     // Higher-priority matches claim regions; lower-priority ones skip overlaps.
 
     // 1. URLs (contain paths, IPs, etc.)
-    collect_matches(&URL_RE, text, url_style(), &mut regions);
+    collect_matches(&URL_RE, text, url_style(), TokenKind::Url, &mut regions);
 
     // 2. UUIDs
-    collect_matches(&UUID_RE, text, uuid_style(), &mut regions);
+    collect_matches(&UUID_RE, text, uuid_style(), TokenKind::Uuid, &mut regions);
 
     // 3. IPv6 addresses
-    collect_matches(&IPV6_RE, text, ip_style(), &mut regions);
+    collect_matches(&IPV6_RE, text, ip_style(), TokenKind::Ip, &mut regions);
 
     // 4. IPv4 addresses (validate octets)
     for caps in IPV4_RE.captures_iter(text) {
@@ -191,6 +215,7 @@ fn tokenize_with_patterns(text: &str, base_style: Style) -> Vec<Span<'static>> {
                     start: m.start(),
                     end: m.end(),
                     style: ip_style(),
+                    kind: TokenKind::Ip,
                 };
                 if !overlaps(&regions, &region) {
                     regions.push(region);
@@ -200,16 +225,34 @@ fn tokenize_with_patterns(text: &str, base_style: Style) -> Vec<Span<'static>> {
     }
 
     // 5. Pointer addresses (0x...)
-    collect_matches(&POINTER_RE, text, pointer_style(), &mut regions);
+    collect_matches(
+        &POINTER_RE,
+        text,
+        pointer_style(),
+        TokenKind::Other,
+        &mut regions,
+    );
 
     // 6. Unix file paths
-    collect_matches(&PATH_RE, text, path_style(), &mut regions);
+    collect_matches(&PATH_RE, text, path_style(), TokenKind::Path, &mut regions);
 
     // 7. Unix processes (sshd[1234])
-    collect_matches(&UNIX_PROCESS_RE, text, unix_process_style(), &mut regions);
+    collect_matches(
+        &UNIX_PROCESS_RE,
+        text,
+        unix_process_style(),
+        TokenKind::Process,
+        &mut regions,
+    );
 
     // 8. HTTP methods
-    collect_matches(&HTTP_METHOD_RE, text, http_method_style(), &mut regions);
+    collect_matches(
+        &HTTP_METHOD_RE,
+        text,
+        http_method_style(),
+        TokenKind::HttpMethod,
+        &mut regions,
+    );
 
     // 9. Key=value pairs (highlight key and '=' only)
     for caps in KEY_VALUE_RE.captures_iter(text) {
@@ -218,6 +261,7 @@ fn tokenize_with_patterns(text: &str, base_style: Style) -> Vec<Span<'static>> {
                 start: key.start(),
                 end: key.end() + 1, // +1 for '='
                 style: key_value_key_style(),
+                kind: TokenKind::KeyValue,
             };
             if !overlaps(&regions, &region) {
                 regions.push(region);
@@ -226,21 +270,45 @@ fn tokenize_with_patterns(text: &str, base_style: Style) -> Vec<Span<'static>> {
     }
 
     // 10. Quoted strings
-    collect_matches(&QUOTED_STR_RE, text, quoted_str_style(), &mut regions);
+    collect_matches(
+        &QUOTED_STR_RE,
+        text,
+        quoted_str_style(),
+        TokenKind::QuotedString,
+        &mut regions,
+    );
 
     // 11. Keywords (true, false, null, nil, none, undefined, NaN)
-    collect_matches(&KEYWORD_RE, text, keyword_style(), &mut regions);
+    collect_matches(
+        &KEYWORD_RE,
+        text,
+        keyword_style(),
+        TokenKind::Other,
+        &mut regions,
+    );
 
     // 12. Inline dates
-    collect_matches(&DATE_RE, text, date_style(), &mut regions);
+    collect_matches(&DATE_RE, text, date_style(), TokenKind::Other, &mut regions);
 
     // 13. Numbers (lowest priority — avoids coloring parts of IPs, UUIDs, etc.)
-    collect_matches(&NUMBER_RE, text, number_style(), &mut regions);
+    collect_matches(
+        &NUMBER_RE,
+        text,
+        number_style(),
+        TokenKind::Other,
+        &mut regions,
+    );
 
     // Sort by start position
     regions.sort_by_key(|r| r.start);
+    regions
+}
 
-    // Build spans
+/// Split `text` into styled spans, highlighting recognized patterns inline.
+/// Unrecognized portions receive `base_style`.
+fn tokenize_with_patterns(text: &str, base_style: Style) -> Vec<Span<'static>> {
+    let regions = collect_all_regions(text);
+
     if regions.is_empty() {
         return vec![Span::styled(text.to_string(), base_style)];
     }
@@ -267,6 +335,48 @@ fn tokenize_with_patterns(text: &str, base_style: Style) -> Vec<Span<'static>> {
     }
 
     spans
+}
+
+/// Returns spans with token metadata for click-to-action support.
+/// Each entry is (Span, Option<TokenKind>, raw_text).
+/// Non-token text has `None` for the kind.
+pub fn tokenize_with_metadata(
+    text: &str,
+    base_style: Style,
+) -> Vec<(Span<'static>, Option<TokenKind>, String)> {
+    let regions = collect_all_regions(text);
+
+    if regions.is_empty() {
+        return vec![(
+            Span::styled(text.to_string(), base_style),
+            None,
+            text.to_string(),
+        )];
+    }
+
+    let mut result = Vec::new();
+    let mut pos = 0;
+
+    for region in &regions {
+        if region.start > pos {
+            let raw = text[pos..region.start].to_string();
+            result.push((Span::styled(raw.clone(), base_style), None, raw));
+        }
+        let raw = text[region.start..region.end].to_string();
+        result.push((
+            Span::styled(raw.clone(), region.style),
+            Some(region.kind),
+            raw,
+        ));
+        pos = region.end;
+    }
+
+    if pos < text.len() {
+        let raw = text[pos..].to_string();
+        result.push((Span::styled(raw.clone(), base_style), None, raw));
+    }
+
+    result
 }
 
 // ---------------------------------------------------------------------------

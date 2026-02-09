@@ -1,4 +1,5 @@
 use crate::filter::filter_lines;
+use crate::highlighter::TokenKind;
 use crate::parser::{LogFormat, LogLevel, ParsedLine, detect_format, parse_line};
 use std::collections::BTreeSet;
 
@@ -6,6 +7,33 @@ use std::collections::BTreeSet;
 pub enum AppMode {
     Normal,
     Filter,
+    ContextMenu,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MenuAction {
+    FilterByValue,
+    OpenInBrowser,
+    LookupAbuseIPDB,
+}
+
+impl MenuAction {
+    pub fn label(self) -> &'static str {
+        match self {
+            MenuAction::FilterByValue => "Filter by this value",
+            MenuAction::OpenInBrowser => "Open in browser",
+            MenuAction::LookupAbuseIPDB => "Lookup on AbuseIPDB",
+        }
+    }
+}
+
+pub struct ContextMenuState {
+    pub token_value: String,
+    #[allow(dead_code)]
+    pub token_kind: TokenKind,
+    pub items: Vec<MenuAction>,
+    pub selected: usize,
+    pub position: (u16, u16),
 }
 
 pub struct App {
@@ -24,6 +52,7 @@ pub struct App {
     follow_paused: bool,
     min_level: Option<LogLevel>,
     available_levels: Vec<LogLevel>,
+    context_menu: Option<ContextMenuState>,
 }
 
 impl App {
@@ -54,6 +83,7 @@ impl App {
             follow_paused: false,
             min_level: None,
             available_levels,
+            context_menu: None,
         }
     }
 
@@ -293,6 +323,69 @@ impl App {
                 }
             }
         };
+        self.recompute_filter();
+    }
+
+    // Context menu methods
+
+    pub fn mode(&self) -> AppMode {
+        self.mode
+    }
+
+    pub fn context_menu(&self) -> Option<&ContextMenuState> {
+        self.context_menu.as_ref()
+    }
+
+    pub fn open_context_menu(
+        &mut self,
+        token_value: String,
+        token_kind: TokenKind,
+        position: (u16, u16),
+    ) {
+        let mut items = vec![MenuAction::FilterByValue];
+        match token_kind {
+            TokenKind::Ip => items.push(MenuAction::LookupAbuseIPDB),
+            TokenKind::Url => items.push(MenuAction::OpenInBrowser),
+            _ => {}
+        }
+        self.context_menu = Some(ContextMenuState {
+            token_value,
+            token_kind,
+            items,
+            selected: 0,
+            position,
+        });
+        self.mode = AppMode::ContextMenu;
+    }
+
+    pub fn close_context_menu(&mut self) {
+        self.context_menu = None;
+        self.mode = AppMode::Normal;
+    }
+
+    pub fn menu_up(&mut self) {
+        if let Some(ref mut menu) = self.context_menu {
+            menu.selected = menu.selected.saturating_sub(1);
+        }
+    }
+
+    pub fn menu_down(&mut self) {
+        if let Some(ref mut menu) = self.context_menu {
+            if menu.selected + 1 < menu.items.len() {
+                menu.selected += 1;
+            }
+        }
+    }
+
+    pub fn execute_menu_action(&mut self) -> Option<(MenuAction, String)> {
+        let menu = self.context_menu.take()?;
+        self.mode = AppMode::Normal;
+        let action = menu.items[menu.selected];
+        Some((action, menu.token_value))
+    }
+
+    pub fn set_filter(&mut self, pattern: String) {
+        self.filter_pattern = pattern;
         self.recompute_filter();
     }
 }
