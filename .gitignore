@@ -1,1 +1,30 @@
+# Build
 /target
+
+# Dependencies
+venv/
+node_modules/
+
+# AI/Agent configs
+.serena/
+CLAUDE.md
+agent.md
+*.agent.md
+
+# Docs & planning (not shipping)
+/docs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.*
+
+# OS
+Thumbs.db

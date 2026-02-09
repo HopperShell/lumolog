@@ -1,0 +1,179 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300" width="800" height="300">
+  <defs>
+    <!-- Glow behind revealed artifacts -->
+    <filter id="artifactGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Edge glow on the letter cutouts -->
+    <filter id="cutoutGlow" x="-5%" y="-5%" width="110%" height="110%">
+      <feMorphology operator="dilate" radius="1.5" in="SourceAlpha" result="expanded"/>
+      <feGaussianBlur stdDeviation="4" in="expanded" result="blurred"/>
+      <feColorMatrix in="blurred" type="matrix" values="0.4 0 0 0 0.25  0 0.2 0 0 0.1  0 0 0.8 0 0.9  0 0 0 0.5 0" result="colored"/>
+      <feMerge>
+        <feMergeNode in="colored"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Stronger glow for the brand letters -->
+    <filter id="letterEdgeGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feMorphology operator="dilate" radius="0.5" in="SourceAlpha" result="expanded"/>
+      <feGaussianBlur stdDeviation="6" in="expanded" result="blurred"/>
+      <feColorMatrix in="blurred" type="matrix" values="0.3 0 0 0 0.3  0 0.15 0 0 0.15  0 0 0.7 0 0.95  0 0 0 0.4 0" result="colored"/>
+      <feMerge>
+        <feMergeNode in="colored"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- The text mask - "lumolog" as cutout shapes -->
+    <mask id="textMask">
+      <rect width="800" height="300" fill="black"/>
+      <text x="400" y="205" font-family="SF Pro Display, Inter, Helvetica Neue, Arial, sans-serif" font-size="120" font-weight="800" fill="white" text-anchor="middle" letter-spacing="4">lumolog</text>
+    </mask>
+
+    <!-- Inverse mask - everything EXCEPT the letters -->
+    <mask id="inverseMask">
+      <rect width="800" height="300" fill="white"/>
+      <text x="400" y="205" font-family="SF Pro Display, Inter, Helvetica Neue, Arial, sans-serif" font-size="120" font-weight="800" fill="black" text-anchor="middle" letter-spacing="4">lumolog</text>
+    </mask>
+
+    <!-- Scan sweep gradient left-to-right across the letters -->
+    <linearGradient id="sweepGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#a78bfa" stop-opacity="0"/>
+      <stop offset="40%" stop-color="#a78bfa" stop-opacity="0"/>
+      <stop offset="60%" stop-color="#a78bfa" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#a78bfa" stop-opacity="0.15"/>
+    </linearGradient>
+
+    <!-- Beam source glow -->
+    <radialGradient id="sourceGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#a78bfa" stop-opacity="0.6"/>
+      <stop offset="50%" stop-color="#7c5cfc" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#7c5cfc" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="300" fill="#08080c"/>
+
+  <!-- === LAYER 1: Dim raw log lines covering the full background === -->
+  <g opacity="0.12">
+    <text x="12" y="30" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:40.001Z INFO  [init] Service lumolog-agent starting on port 8443 pid=28412</text>
+    <text x="12" y="44" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:40.112Z DEBUG [tls] Certificate loaded: /etc/ssl/certs/server.pem expires=2025-03-01</text>
+    <text x="12" y="58" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:41.332Z INFO  [worker-3] Connection established from 10.0.4.22 user=deploy role=admin</text>
+    <text x="12" y="72" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:41.887Z DEBUG [auth] Token validation passed for user admin scope=read,write ttl=3600</text>
+    <text x="12" y="86" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:42.102Z WARN  [firewall] Unusual port scan detected from 192.168.1.105 ports=22,80,443,8080,3306</text>
+    <text x="12" y="100" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:42.445Z INFO  [worker-1] Processing batch job #4412 queue=default priority=normal items=1284</text>
+    <text x="12" y="114" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:43.001Z ERROR [db] Connection timeout after 30000ms host=db-primary port=5432 retries=3/3</text>
+    <text x="12" y="128" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:43.221Z INFO  [scheduler] Cron job backup_daily triggered next_run=2024-01-16T08:00:00Z</text>
+    <text x="12" y="142" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:43.556Z DEBUG [pool] Connection returned to pool active=12 idle=8 max=50 wait_queue=0</text>
+    <text x="12" y="156" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:43.887Z WARN  [auth] Failed login attempt #5 from 203.0.113.42 user=root method=ssh</text>
+    <text x="12" y="170" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:44.102Z DEBUG [cache] Cache miss for key=session_a8f3e2 region=us-east-1 latency=2ms</text>
+    <text x="12" y="184" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:44.334Z INFO  [api] GET /v2/health 200 OK latency=4ms caller=10.0.1.50 trace=abc123</text>
+    <text x="12" y="198" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:44.556Z ERROR [api] POST /v2/payments 503 Service Unavailable upstream=payment-svc retry=true</text>
+    <text x="12" y="212" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:44.891Z INFO  [worker-2] Task completed in 234ms job=#4411 status=success records=892</text>
+    <text x="12" y="226" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:45.003Z WARN  [ids] Brute force pattern detected source=203.0.113.42 attempts=5 window=60s</text>
+    <text x="12" y="240" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:45.112Z ERROR [auth] Account locked user=root reason=max_attempts source=203.0.113.42</text>
+    <text x="12" y="254" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:45.220Z INFO  [firewall] Rule applied action=block source=203.0.113.42 duration=3600s</text>
+    <text x="12" y="268" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:45.334Z INFO  [notify] Alert sent channel=slack severity=high incident=INC-20240115-001</text>
+    <text x="12" y="282" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:45.445Z DEBUG [gc] Memory reclaimed 42MB heap_used=128MB heap_total=512MB gc_pause=12ms</text>
+    <text x="12" y="296" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" fill="#555" letter-spacing="0.3">2024-01-15T08:23:45.561Z INFO  [lb] Health check passed upstream=api-cluster-1 response_time=3ms status=healthy</text>
+  </g>
+
+  <!-- === LAYER 2: Colorized log lines ONLY visible through the letter cutouts === -->
+  <g mask="url(#textMask)">
+    <!-- Subtle UV wash inside the letters -->
+    <rect width="800" height="300" fill="url(#sweepGrad)"/>
+
+    <!-- Colorized, revealed log lines -->
+    <text x="12" y="30" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:40.001Z</tspan><tspan fill="#34d399"> INFO </tspan><tspan fill="#484860"> [init] Service lumolog-agent starting on port </tspan><tspan fill="#67e8f9">8443</tspan><tspan fill="#484860"> pid=28412</tspan>
+    </text>
+    <text x="12" y="44" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:40.112Z</tspan><tspan fill="#6b7280"> DEBUG</tspan><tspan fill="#484860"> [tls] Certificate loaded: /etc/ssl/certs/server.pem expires=2025-03-01</tspan>
+    </text>
+    <text x="12" y="58" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:41.332Z</tspan><tspan fill="#34d399"> INFO </tspan><tspan fill="#484860"> [worker-3] Connection established from </tspan><tspan fill="#67e8f9">10.0.4.22</tspan><tspan fill="#484860"> user=deploy role=admin</tspan>
+    </text>
+    <text x="12" y="72" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:41.887Z</tspan><tspan fill="#6b7280"> DEBUG</tspan><tspan fill="#484860"> [auth] Token validation passed for user admin scope=read,write ttl=3600</tspan>
+    </text>
+
+    <rect x="0" y="77" width="800" height="14" fill="#fbbf24" opacity="0.06"/>
+    <text x="12" y="86" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:42.102Z</tspan><tspan fill="#fbbf24"> WARN </tspan><tspan fill="#484860"> [firewall] Unusual port scan detected from </tspan><tspan fill="#fb923c">192.168.1.105</tspan><tspan fill="#484860"> ports=22,80,443,8080,3306</tspan>
+    </text>
+
+    <text x="12" y="100" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:42.445Z</tspan><tspan fill="#34d399"> INFO </tspan><tspan fill="#484860"> [worker-1] Processing batch job #4412 queue=default priority=normal items=1284</tspan>
+    </text>
+
+    <rect x="0" y="105" width="800" height="14" fill="#f87171" opacity="0.07"/>
+    <text x="12" y="114" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:43.001Z</tspan><tspan fill="#f87171"> ERROR</tspan><tspan fill="#484860"> [db] Connection timeout after 30000ms host=</tspan><tspan fill="#f87171">db-primary</tspan><tspan fill="#484860"> port=5432 retries=3/3</tspan>
+    </text>
+
+    <text x="12" y="128" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:43.221Z</tspan><tspan fill="#34d399"> INFO </tspan><tspan fill="#484860"> [scheduler] Cron job backup_daily triggered next_run=2024-01-16T08:00:00Z</tspan>
+    </text>
+    <text x="12" y="142" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:43.556Z</tspan><tspan fill="#6b7280"> DEBUG</tspan><tspan fill="#484860"> [pool] Connection returned to pool active=12 idle=8 max=50 wait_queue=0</tspan>
+    </text>
+
+    <rect x="0" y="147" width="800" height="14" fill="#fbbf24" opacity="0.06"/>
+    <text x="12" y="156" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:43.887Z</tspan><tspan fill="#fbbf24"> WARN </tspan><tspan fill="#484860"> [auth] Failed login attempt #5 from </tspan><tspan fill="#fb923c">203.0.113.42</tspan><tspan fill="#484860"> user=root method=ssh</tspan>
+    </text>
+
+    <text x="12" y="170" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:44.102Z</tspan><tspan fill="#6b7280"> DEBUG</tspan><tspan fill="#484860"> [cache] Cache miss for key=session_a8f3e2 region=us-east-1 latency=2ms</tspan>
+    </text>
+    <text x="12" y="184" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:44.334Z</tspan><tspan fill="#34d399"> INFO </tspan><tspan fill="#484860"> [api] GET /v2/health 200 OK latency=4ms caller=</tspan><tspan fill="#67e8f9">10.0.1.50</tspan><tspan fill="#484860"> trace=abc123</tspan>
+    </text>
+
+    <rect x="0" y="189" width="800" height="14" fill="#f87171" opacity="0.07"/>
+    <text x="12" y="198" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:44.556Z</tspan><tspan fill="#f87171"> ERROR</tspan><tspan fill="#484860"> [api] POST /v2/payments 503 Service Unavailable upstream=</tspan><tspan fill="#f87171">payment-svc</tspan><tspan fill="#484860"> retry=true</tspan>
+    </text>
+
+    <text x="12" y="212" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:44.891Z</tspan><tspan fill="#34d399"> INFO </tspan><tspan fill="#484860"> [worker-2] Task completed in 234ms job=#4411 status=success records=892</tspan>
+    </text>
+
+    <rect x="0" y="217" width="800" height="14" fill="#fbbf24" opacity="0.06"/>
+    <text x="12" y="226" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:45.003Z</tspan><tspan fill="#fbbf24"> WARN </tspan><tspan fill="#484860"> [ids] Brute force pattern detected source=</tspan><tspan fill="#fb923c">203.0.113.42</tspan><tspan fill="#484860"> attempts=5 window=60s</tspan>
+    </text>
+
+    <rect x="0" y="231" width="800" height="14" fill="#f87171" opacity="0.07"/>
+    <text x="12" y="240" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:45.112Z</tspan><tspan fill="#f87171"> ERROR</tspan><tspan fill="#484860"> [auth] Account locked user=root reason=max_attempts source=</tspan><tspan fill="#f87171">203.0.113.42</tspan>
+    </text>
+
+    <text x="12" y="254" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:45.220Z</tspan><tspan fill="#34d399"> INFO </tspan><tspan fill="#484860"> [firewall] Rule applied action=block source=</tspan><tspan fill="#67e8f9">203.0.113.42</tspan><tspan fill="#484860"> duration=3600s</tspan>
+    </text>
+    <text x="12" y="268" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:45.334Z</tspan><tspan fill="#34d399"> INFO </tspan><tspan fill="#484860"> [notify] Alert sent channel=slack severity=high incident=INC-20240115-001</tspan>
+    </text>
+    <text x="12" y="282" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:45.445Z</tspan><tspan fill="#6b7280"> DEBUG</tspan><tspan fill="#484860"> [gc] Memory reclaimed 42MB heap_used=128MB heap_total=512MB gc_pause=12ms</tspan>
+    </text>
+    <text x="12" y="296" font-family="SF Mono, JetBrains Mono, Fira Code, monospace" font-size="10" letter-spacing="0.3">
+      <tspan fill="#484860">2024-01-15T08:23:45.561Z</tspan><tspan fill="#34d399"> INFO </tspan><tspan fill="#484860"> [lb] Health check passed upstream=api-cluster-1 response_time=3ms status=healthy</tspan>
+    </text>
+  </g>
+
+  <!-- === LAYER 3: Subtle purple edge glow on the letter outlines === -->
+  <text x="400" y="205" font-family="SF Pro Display, Inter, Helvetica Neue, Arial, sans-serif" font-size="120" font-weight="800" fill="none" stroke="#7c5cfc" stroke-width="0.5" text-anchor="middle" letter-spacing="4" opacity="0.4" filter="url(#letterEdgeGlow)">lumolog</text>
+
+  <!-- Tagline below -->
+  <text x="400" y="290" font-family="SF Pro Display, Inter, Helvetica Neue, sans-serif" font-size="11" fill="#6b6b8a" text-anchor="middle" letter-spacing="4">see what's hidden</text>
+</svg>
