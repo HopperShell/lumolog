@@ -8,7 +8,7 @@ pub enum LogFormat {
     Plain,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum LogLevel {
     Trace,
     Debug,
@@ -16,6 +16,19 @@ pub enum LogLevel {
     Warn,
     Error,
     Fatal,
+}
+
+impl LogLevel {
+    pub fn short_name(self) -> &'static str {
+        match self {
+            LogLevel::Trace => "TRC",
+            LogLevel::Debug => "DBG",
+            LogLevel::Info => "INF",
+            LogLevel::Warn => "WRN",
+            LogLevel::Error => "ERR",
+            LogLevel::Fatal => "FTL",
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -36,7 +49,7 @@ static PLAIN_TIMESTAMP_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}[^\s]*)").unwrap());
 
 static LEVEL_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)\b(TRACE|DEBUG|INFO|WARN(?:ING)?|ERROR|FATAL|CRITICAL|SEVERE)\b").unwrap()
+    Regex::new(r"(?i)\b(TRACE|DEBUG|INFO|NOTICE|WARN(?:ING)?|ERROR|FATAL|CRITICAL|SEVERE|EMERGENCY|EMERG|ALERT|PANIC)\b").unwrap()
 });
 
 pub fn detect_format(lines: &[String]) -> LogFormat {
@@ -83,8 +96,11 @@ fn parse_json_line(raw: &str) -> ParsedLine {
                 .get("level")
                 .or_else(|| value.get("severity"))
                 .or_else(|| value.get("log.level"))
-                .and_then(|v| v.as_str())
-                .and_then(parse_level_str);
+                .and_then(|v| {
+                    v.as_str()
+                        .and_then(parse_level_str)
+                        .or_else(|| v.as_u64().and_then(parse_numeric_level))
+                });
 
             let timestamp = value
                 .get("timestamp")
@@ -161,10 +177,25 @@ fn parse_level_str(s: &str) -> Option<LogLevel> {
     match s.to_uppercase().as_str() {
         "TRACE" => Some(LogLevel::Trace),
         "DEBUG" => Some(LogLevel::Debug),
-        "INFO" => Some(LogLevel::Info),
+        "INFO" | "NOTICE" => Some(LogLevel::Info),
         "WARN" | "WARNING" => Some(LogLevel::Warn),
         "ERROR" | "SEVERE" => Some(LogLevel::Error),
-        "FATAL" | "CRITICAL" => Some(LogLevel::Fatal),
+        "FATAL" | "CRITICAL" | "EMERGENCY" | "EMERG" | "ALERT" | "PANIC" => Some(LogLevel::Fatal),
+        _ => None,
+    }
+}
+
+/// Parse numeric log levels used by Bunyan, Pino, and similar JSON loggers.
+/// Convention: 10=trace, 20=debug, 30=info, 40=warn, 50=error, 60=fatal.
+/// Uses ranges to handle custom intermediate levels.
+fn parse_numeric_level(n: u64) -> Option<LogLevel> {
+    match n {
+        1..=10 => Some(LogLevel::Trace),
+        11..=20 => Some(LogLevel::Debug),
+        21..=30 => Some(LogLevel::Info),
+        31..=40 => Some(LogLevel::Warn),
+        41..=50 => Some(LogLevel::Error),
+        51..=60 => Some(LogLevel::Fatal),
         _ => None,
     }
 }

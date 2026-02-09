@@ -7,6 +7,7 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use crate::app::App;
 use crate::highlighter::{highlight_line, highlight_line_expanded};
 use crate::parser::LogFormat;
+use crate::parser::LogLevel;
 
 pub fn render(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
@@ -109,6 +110,10 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         }
     }
 
+    if let Some(min_level) = app.min_level() {
+        status_parts.push(format!("Level: {}+", min_level.short_name()));
+    }
+
     if !app.filter_pattern().is_empty() {
         status_parts.push(format!(
             "Filter: \"{}\" ({} matches)",
@@ -120,8 +125,35 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     status_parts.push(format!("{}%", pct));
 
     let status_text = status_parts.join(" | ");
-    let status =
-        Paragraph::new(status_text).style(Style::default().fg(Color::Black).bg(Color::White));
+
+    // Build styled status bar with colored level indicator
+    let status = if let Some(min_level) = app.min_level() {
+        let level_label = format!("Level: {}+", min_level.short_name());
+        let level_color = match min_level {
+            LogLevel::Fatal => Color::Red,
+            LogLevel::Error => Color::Red,
+            LogLevel::Warn => Color::Yellow,
+            LogLevel::Info => Color::Green,
+            LogLevel::Debug | LogLevel::Trace => Color::DarkGray,
+        };
+        // Find where the level part is in the status text and colorize just that part
+        if let Some(pos) = status_text.find(&level_label) {
+            let before = &status_text[..pos];
+            let after = &status_text[pos + level_label.len()..];
+            Paragraph::new(Line::from(vec![
+                Span::styled(before, Style::default().fg(Color::Black).bg(Color::White)),
+                Span::styled(
+                    level_label,
+                    Style::default().fg(level_color).bg(Color::White),
+                ),
+                Span::styled(after, Style::default().fg(Color::Black).bg(Color::White)),
+            ]))
+        } else {
+            Paragraph::new(status_text).style(Style::default().fg(Color::Black).bg(Color::White))
+        }
+    } else {
+        Paragraph::new(status_text).style(Style::default().fg(Color::Black).bg(Color::White))
+    };
 
     frame.render_widget(status, status_area);
 
@@ -139,6 +171,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             Line::from("  PgUp / PgDn  Page up/down"),
             Line::from("  g / G        Top / Bottom"),
             Line::from("  /            Filter"),
+            Line::from("  v / V        Cycle log level filter"),
             Line::from("  p            Pretty-print JSON"),
             Line::from("  Space        Pause/resume (-f mode)"),
             Line::from("  ?            Toggle this help"),

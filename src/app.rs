@@ -1,5 +1,6 @@
 use crate::filter::filter_lines;
-use crate::parser::{LogFormat, ParsedLine, detect_format, parse_line};
+use crate::parser::{LogFormat, LogLevel, ParsedLine, detect_format, parse_line};
+use std::collections::BTreeSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppMode {
@@ -21,6 +22,8 @@ pub struct App {
     source_name: String,
     follow_mode: bool,
     follow_paused: bool,
+    min_level: Option<LogLevel>,
+    available_levels: Vec<LogLevel>,
 }
 
 impl App {
@@ -29,6 +32,12 @@ impl App {
         let parsed_lines: Vec<ParsedLine> =
             lines.iter().map(|line| parse_line(line, format)).collect();
         let filtered_indices = (0..parsed_lines.len()).collect();
+
+        let available_levels: Vec<LogLevel> = {
+            let set: BTreeSet<LogLevel> = parsed_lines.iter().filter_map(|l| l.level).collect();
+            set.into_iter().collect()
+        };
+
         Self {
             parsed_lines,
             format,
@@ -43,6 +52,8 @@ impl App {
             source_name: String::from("stdin"),
             follow_mode: false,
             follow_paused: false,
+            min_level: None,
+            available_levels,
         }
     }
 
@@ -185,7 +196,8 @@ impl App {
     }
 
     fn recompute_filter(&mut self) {
-        self.filtered_indices = filter_lines(&self.parsed_lines, &self.filter_pattern);
+        self.filtered_indices =
+            filter_lines(&self.parsed_lines, &self.filter_pattern, self.min_level);
         self.scroll_offset = 0;
     }
 
@@ -210,8 +222,9 @@ impl App {
             self.parsed_lines.push(parsed);
         }
 
-        // Recompute filtered indices from scratch (filter may be active)
-        self.filtered_indices = filter_lines(&self.parsed_lines, &self.filter_pattern);
+        // Recompute filtered indices from scratch (filter or level filter may be active)
+        self.filtered_indices =
+            filter_lines(&self.parsed_lines, &self.filter_pattern, self.min_level);
 
         if was_at_bottom {
             self.scroll_to_bottom();
@@ -232,5 +245,54 @@ impl App {
 
     pub fn is_follow_paused(&self) -> bool {
         self.follow_paused
+    }
+
+    // Level filter methods
+
+    pub fn min_level(&self) -> Option<LogLevel> {
+        self.min_level
+    }
+
+    /// Raise the minimum level (hide more). Cycles: None → second-lowest → … → highest → None.
+    pub fn cycle_level_up(&mut self) {
+        if self.available_levels.len() <= 1 {
+            return;
+        }
+        self.min_level = match self.min_level {
+            None => {
+                // Skip the lowest level (min=lowest ≡ no filter), go to second
+                self.available_levels.get(1).copied()
+            }
+            Some(current) => {
+                // Find the next higher level
+                match self.available_levels.iter().position(|&l| l == current) {
+                    Some(idx) if idx + 1 < self.available_levels.len() => {
+                        Some(self.available_levels[idx + 1])
+                    }
+                    _ => None, // wrap around to show all
+                }
+            }
+        };
+        self.recompute_filter();
+    }
+
+    /// Lower the minimum level (show more). Cycles: None → highest → … → second-lowest → None.
+    pub fn cycle_level_down(&mut self) {
+        if self.available_levels.len() <= 1 {
+            return;
+        }
+        self.min_level = match self.min_level {
+            None => {
+                // Start from the highest level
+                self.available_levels.last().copied()
+            }
+            Some(current) => {
+                match self.available_levels.iter().position(|&l| l == current) {
+                    Some(idx) if idx > 1 => Some(self.available_levels[idx - 1]),
+                    _ => None, // at second-lowest or lowest, wrap to show all
+                }
+            }
+        };
+        self.recompute_filter();
     }
 }

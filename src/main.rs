@@ -118,15 +118,15 @@ fn main() -> anyhow::Result<()> {
                         KeyCode::Char('q') | KeyCode::Esc => app.quit(),
                         KeyCode::Down | KeyCode::Char('j') => app.scroll_down(1),
                         KeyCode::Up | KeyCode::Char('k') => app.scroll_up(1),
-                        KeyCode::Char(' ') if app.is_follow_mode() => {
-                            app.toggle_follow_pause()
-                        }
+                        KeyCode::Char(' ') if app.is_follow_mode() => app.toggle_follow_pause(),
                         KeyCode::PageDown | KeyCode::Char(' ') => app.page_down(),
                         KeyCode::PageUp => app.page_up(),
                         KeyCode::Char('g') => app.scroll_to_top(),
                         KeyCode::Char('G') => app.scroll_to_bottom(),
                         KeyCode::Char('/') => app.enter_filter_mode(),
                         KeyCode::Char('p') => app.toggle_pretty(),
+                        KeyCode::Char('v') => app.cycle_level_up(),
+                        KeyCode::Char('V') => app.cycle_level_down(),
                         KeyCode::Char('?') => app.toggle_help(),
                         _ => {}
                     }
