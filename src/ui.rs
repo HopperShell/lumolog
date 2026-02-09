@@ -392,3 +392,38 @@ fn get_highlight_prefix_len(parsed: &crate::parser::ParsedLine) -> usize {
         LogFormat::Plain | LogFormat::Syslog => 0,
     }
 }
+
+/// Check if a click position lands on a context menu item.
+/// Returns the 0-based item index if so.
+pub fn menu_item_at_position(app: &App, column: u16, row: u16, area: Rect) -> Option<usize> {
+    let menu = app.context_menu()?;
+
+    let menu_width = menu
+        .items
+        .iter()
+        .map(|a| a.label().len() as u16 + 2)
+        .max()
+        .unwrap_or(20)
+        + 2;
+    let menu_height = menu.items.len() as u16 + 2;
+
+    let x = menu.position.0.min(area.width.saturating_sub(menu_width));
+    let y = menu.position.1.min(area.height.saturating_sub(menu_height));
+
+    // Content area is inside the border: (x+1, y+1) to (x+w-2, y+h-2)
+    let content_x = x + 1;
+    let content_y = y + 1;
+    let content_bottom = y + menu_height - 1;
+
+    if column >= content_x
+        && column < x + menu_width - 1
+        && row >= content_y
+        && row < content_bottom
+    {
+        let item_index = (row - content_y) as usize;
+        if item_index < menu.items.len() {
+            return Some(item_index);
+        }
+    }
+    None
+}

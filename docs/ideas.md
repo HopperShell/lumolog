@@ -4,7 +4,6 @@ Core differentiator vs tailspin: tailspin makes text pretty. Lumolog *understand
 
 ## High Priority
 
-- **Level filtering** - toggle visibility by level (hide DEBUG, show only ERROR+WARN). Keybind like `1-5` to set minimum level.
 - **Fuzzy search** - replace exact substring filter with fuzzy matching (e.g. `nucleo` or `fuzzy-matcher` crate). Type "conref" and match "connection refused". Fall back to fuzzy when exact match returns zero results, so exact matches stay fast and predictable.
 - **Logfmt parser** - dedicated format detection for `key=value` logs (Prometheus, Grafana, Go ecosystem). Currently detected as Plain.
 
@@ -39,10 +38,7 @@ Core differentiator vs tailspin: tailspin makes text pretty. Lumolog *understand
 - **Contextual lines** - show N lines before/after each match (like grep -C).
 - **Search highlighting** - highlight all matches of filter term in-line (not just filter to matching lines).
 - **Wrap toggle** - long lines currently truncate; toggle to wrap.
-- **Mouse support** - crossterm supports full mouse events. Ideas:
-  - **Scroll wheel** - scroll up/down through logs.
-  - **Click-to-filter** - click any highlighted pattern (IP, URL, UUID, path, etc.) to instantly filter logs to lines containing that value. No other log viewer does this.
-  - **Right-click context menu** - on a highlighted pattern: filter to it, exclude it, copy value. For URLs: open in browser.
+- **Mouse extras** - we have scroll, click-to-filter, and context menus. More ideas:
   - **Click line to bookmark** - click the gutter/margin to toggle a bookmark on a line.
   - **Drag to select & copy** - select a range of text across lines, copy to clipboard.
   - **Click stats bar counts** - if stats bar is implemented, clicking a level count (e.g. "42 errors") filters to that level.

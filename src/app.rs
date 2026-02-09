@@ -384,6 +384,13 @@ impl App {
         Some((action, menu.token_value))
     }
 
+    pub fn execute_menu_item(&mut self, index: usize) -> Option<(MenuAction, String)> {
+        let menu = self.context_menu.take()?;
+        self.mode = AppMode::Normal;
+        let action = *menu.items.get(index)?;
+        Some((action, menu.token_value))
+    }
+
     pub fn set_filter(&mut self, pattern: String) {
         self.filter_pattern = pattern;
         self.recompute_filter();

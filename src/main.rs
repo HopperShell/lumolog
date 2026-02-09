@@ -167,14 +167,31 @@ fn main() -> anyhow::Result<()> {
                 Event::Mouse(mouse) => match mouse.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         if app.mode() == AppMode::ContextMenu {
-                            // Check if click is inside the menu; if not, close it
-                            // For simplicity, close and re-evaluate
-                            app.close_context_menu();
-                            // Also try to open a new menu at the click position
-                            if let Some((kind, value)) =
-                                ui::token_at_position(&app, mouse.column, mouse.row, terminal_area)
-                            {
-                                app.open_context_menu(value, kind, (mouse.column, mouse.row));
+                            if let Some(index) = ui::menu_item_at_position(
+                                &app,
+                                mouse.column,
+                                mouse.row,
+                                terminal_area,
+                            ) {
+                                // Clicked a menu item — execute it
+                                if let Some((action, value)) = app.execute_menu_item(index) {
+                                    execute_action(action, value, &mut app);
+                                }
+                            } else {
+                                // Clicked outside menu — close and check for new token
+                                app.close_context_menu();
+                                if let Some((kind, value)) = ui::token_at_position(
+                                    &app,
+                                    mouse.column,
+                                    mouse.row,
+                                    terminal_area,
+                                ) {
+                                    app.open_context_menu(
+                                        value,
+                                        kind,
+                                        (mouse.column, mouse.row),
+                                    );
+                                }
                             }
                         } else if app.mode() == AppMode::Normal {
                             if let Some((kind, value)) =
