@@ -1,0 +1,13 @@
+2024-01-15 08:30:01 INFO  Application starting up version 2.4.1
+2024-01-15 08:30:02 DEBUG Loading configuration from /etc/app/config.yaml
+2024-01-15 08:30:02 INFO  Connected to database at 10.0.0.50:5432
+2024-01-15 08:30:03 WARN  Cache miss rate above threshold: 45%
+2024-01-15 08:30:04 INFO  Request handled: GET /api/users (200, 23ms)
+2024-01-15 08:30:05 ERROR Failed to connect to redis at 10.0.0.51:6379 err="Connection refused"
+2024-01-15 08:30:05 INFO  Falling back to in-memory cache
+2024-01-15 08:30:06 DEBUG Request f47ac10b-58cc-4372-a567-0e02b2c3d479 received
+2024-01-15 08:30:06 INFO  POST /api/orders response=201 duration=145ms
+2024-01-15 08:30:07 WARN  Slow query detected: SELECT * FROM users (850ms)
+2024-01-15 08:30:08 INFO  Webhook sent to https://hooks.example.com/api/notify
+2024-01-15 08:30:09 ERROR CRITICAL: Out of memory on worker thread #3
+2024-01-15 08:30:10 FATAL Process terminating: SIGKILL received

@@ -1,0 +1,5 @@
+level=info ts=2024-01-15T08:30:01Z caller=main.go:42 msg="server starting" addr=0.0.0.0:8080
+level=debug ts=2024-01-15T08:30:02Z caller=db.go:87 msg="connected to database" host=localhost:5432 db=myapp
+level=warn ts=2024-01-15T08:30:03Z caller=cache.go:55 msg="cache miss rate high" rate=0.45 threshold=0.3
+level=error ts=2024-01-15T08:30:05Z caller=redis.go:23 msg="connection refused" host=localhost:6379 err="dial tcp 127.0.0.1:6379: connect: connection refused"
+level=info ts=2024-01-15T08:30:06Z caller=http.go:112 msg="request handled" method=GET path=/api/users status=200 duration=23ms request_id=f47ac10b-58cc-4372-a567-0e02b2c3d479

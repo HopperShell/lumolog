@@ -1,0 +1,6 @@
+{"level":30,"time":1705302601000,"pid":12345,"hostname":"web-01","msg":"Server listening on port 3000"}
+{"level":20,"time":1705302602000,"pid":12345,"hostname":"web-01","msg":"Loading configuration from /etc/app/config.json"}
+{"level":40,"time":1705302603000,"pid":12345,"hostname":"web-01","msg":"Deprecated API endpoint called","path":"/api/v1/users","replacement":"/api/v2/users"}
+{"level":50,"time":1705302605000,"pid":12345,"hostname":"web-01","msg":"Failed to connect to database","host":"db.internal:5432","error":"ETIMEDOUT"}
+{"level":60,"time":1705302610000,"pid":12345,"hostname":"web-01","msg":"Process crashed","signal":"SIGSEGV"}
+{"level":10,"time":1705302611000,"pid":12345,"hostname":"web-01","msg":"Entering request handler","requestId":"f47ac10b-58cc-4372-a567-0e02b2c3d479"}
