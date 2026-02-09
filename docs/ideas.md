@@ -2,6 +2,18 @@
 
 Core differentiator vs tailspin: tailspin makes text pretty. Lumolog *understands* your logs.
 
+## Done
+
+- ~~**Level filtering**~~ - toggle visibility by level with `v`/`V` keys
+- ~~**Inline pattern highlighting**~~ - IPs, URLs, UUIDs, paths, HTTP methods, key=value, quoted strings, etc.
+- ~~**Mouse support**~~ - scroll wheel, click-to-filter on tokens, context menu with actions (filter, AbuseIPDB lookup, open URL in browser)
+- ~~**Follow mode**~~ - `--follow`/`-f` flag with pause/resume
+- ~~**JSON pretty-print**~~ - toggle with `p` key
+- ~~**Stdin support**~~ - pipe input via stdin
+- ~~**Substring filter**~~ - `/` to search, case-insensitive matching
+- ~~**Line numbers**~~ - displayed in gutter
+- ~~**Help overlay**~~ - `?` to toggle keybinding reference
+
 ## High Priority
 
 - **Fuzzy search** - replace exact substring filter with fuzzy matching (e.g. `nucleo` or `fuzzy-matcher` crate). Type "conref" and match "connection refused". Fall back to fuzzy when exact match returns zero results, so exact matches stay fast and predictable.
