@@ -14,6 +14,7 @@ use crate::parser::LogLevel;
 
 pub fn render(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
+    app.tick_yank_flash();
 
     let filter_height = if app.is_filter_mode() { 1 } else { 0 };
 
@@ -36,10 +37,19 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         None
     };
 
+    let cursor_entry_index: Option<usize> = if app.is_cursor_mode() {
+        Some(app.cursor_position().saturating_sub(app.scroll_offset()))
+    } else {
+        None
+    };
+    let cursor_bg = Color::DarkGray;
+
     let all_display_lines: Vec<Line> = if app.is_pretty() {
         app.visible_parsed_lines_numbered()
             .iter()
-            .flat_map(|(line_num, parsed)| {
+            .enumerate()
+            .flat_map(|(entry_idx, (line_num, parsed))| {
+                let is_cursor = cursor_entry_index == Some(entry_idx);
                 let mut expanded = highlight_line_expanded(parsed, true);
                 if let Some(pattern) = search_pattern {
                     expanded = expanded
@@ -63,13 +73,21 @@ pub fn render(frame: &mut Frame, app: &mut App) {
                     );
                     line.spans.insert(0, blank_prefix);
                 }
+                if is_cursor {
+                    expanded = expanded
+                        .into_iter()
+                        .map(|l| apply_bg_to_line(l, cursor_bg))
+                        .collect();
+                }
                 expanded
             })
             .collect()
     } else {
         app.visible_parsed_lines_numbered()
             .iter()
-            .map(|(line_num, parsed)| {
+            .enumerate()
+            .map(|(entry_idx, (line_num, parsed))| {
+                let is_cursor = cursor_entry_index == Some(entry_idx);
                 let prefix = Span::styled(
                     format!("{:>width$} ", line_num, width = line_num_width),
                     Style::default().fg(Color::DarkGray),
@@ -79,6 +97,9 @@ pub fn render(frame: &mut Frame, app: &mut App) {
                     highlighted = apply_search_highlight(highlighted, pattern);
                 }
                 highlighted.spans.insert(0, prefix);
+                if is_cursor {
+                    highlighted = apply_bg_to_line(highlighted, cursor_bg);
+                }
                 highlighted
             })
             .collect()
@@ -123,6 +144,13 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         format!("{}", format_label),
         format!("{} lines", total),
     ];
+
+    if app.is_cursor_mode() {
+        status_parts.push("CURSOR".to_string());
+        if app.show_yank_flash() {
+            status_parts.push("YANKED".to_string());
+        }
+    }
 
     if app.is_follow_mode() {
         if app.is_follow_paused() {
@@ -242,6 +270,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             Line::from("  v / V        Cycle log level filter"),
             Line::from("  p            Pretty-print JSON"),
             Line::from("  w            Toggle line wrapping"),
+            Line::from("  Enter        Cursor mode (j/k move, y yank, Esc exit)"),
             Line::from("  Space        Pause/resume (-f mode)"),
             Line::from("  ?            Toggle this help"),
             Line::from(""),
@@ -414,6 +443,16 @@ fn get_highlight_prefix_len(parsed: &crate::parser::ParsedLine) -> usize {
         }
         LogFormat::Plain | LogFormat::Syslog => 0,
     }
+}
+
+/// Overlay a background color on every span in a line, preserving existing fg/modifiers.
+fn apply_bg_to_line(line: Line<'_>, bg: Color) -> Line<'static> {
+    Line::from(
+        line.spans
+            .iter()
+            .map(|span| Span::styled(span.content.to_string(), span.style.bg(bg)))
+            .collect::<Vec<_>>(),
+    )
 }
 
 /// Check if a click position lands on a context menu item.

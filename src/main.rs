@@ -132,6 +132,23 @@ fn main() -> anyhow::Result<()> {
                             KeyCode::Esc => app.close_context_menu(),
                             _ => app.close_context_menu(),
                         }
+                    } else if app.is_cursor_mode() {
+                        match key.code {
+                            KeyCode::Down | KeyCode::Char('j') => app.cursor_down(1),
+                            KeyCode::Up | KeyCode::Char('k') => app.cursor_up(1),
+                            KeyCode::Char('y') => {
+                                if let Some(text) = app.cursor_line_raw() {
+                                    if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                                        let _ = clipboard.set_text(text.to_string());
+                                        app.set_yank_flash();
+                                    }
+                                }
+                            }
+                            KeyCode::Esc => app.exit_cursor_mode(),
+                            KeyCode::Char('q') => app.quit(),
+                            KeyCode::Char('?') => app.toggle_help(),
+                            _ => {}
+                        }
                     } else {
                         match key.code {
                             _ if app.is_filter_mode() => match key.code {
@@ -161,6 +178,7 @@ fn main() -> anyhow::Result<()> {
                             KeyCode::Char('v') => app.cycle_level_up(),
                             KeyCode::Char('V') => app.cycle_level_down(),
                             KeyCode::Char('?') => app.toggle_help(),
+                            KeyCode::Enter => app.enter_cursor_mode(),
                             _ => {}
                         }
                     }

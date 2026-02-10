@@ -8,6 +8,7 @@ pub enum AppMode {
     Normal,
     Filter,
     ContextMenu,
+    Cursor,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,6 +56,8 @@ pub struct App {
     available_levels: Vec<LogLevel>,
     context_menu: Option<ContextMenuState>,
     wrap: bool,
+    cursor_position: usize,
+    yank_flash: u8,
 }
 
 impl App {
@@ -88,6 +91,8 @@ impl App {
             available_levels,
             context_menu: None,
             wrap: false,
+            cursor_position: 0,
+            yank_flash: 0,
         }
     }
 
@@ -229,6 +234,80 @@ impl App {
         self.wrap
     }
 
+    // Cursor mode methods
+
+    pub fn enter_cursor_mode(&mut self) {
+        self.cursor_position = self.scroll_offset;
+        self.mode = AppMode::Cursor;
+    }
+
+    pub fn exit_cursor_mode(&mut self) {
+        self.mode = AppMode::Normal;
+    }
+
+    pub fn is_cursor_mode(&self) -> bool {
+        self.mode == AppMode::Cursor
+    }
+
+    pub fn cursor_position(&self) -> usize {
+        self.cursor_position
+    }
+
+    pub fn cursor_line_raw(&self) -> Option<&str> {
+        self.filtered_indices
+            .get(self.cursor_position)
+            .map(|&idx| self.parsed_lines[idx].raw.as_str())
+    }
+
+    pub fn set_yank_flash(&mut self) {
+        self.yank_flash = 3;
+    }
+
+    pub fn tick_yank_flash(&mut self) {
+        self.yank_flash = self.yank_flash.saturating_sub(1);
+    }
+
+    pub fn show_yank_flash(&self) -> bool {
+        self.yank_flash > 0
+    }
+
+    pub fn cursor_down(&mut self, n: usize) {
+        let max = self.filtered_indices.len().saturating_sub(1);
+        self.cursor_position = (self.cursor_position + n).min(max);
+        self.scroll_to_cursor();
+    }
+
+    pub fn cursor_up(&mut self, n: usize) {
+        self.cursor_position = self.cursor_position.saturating_sub(n);
+        self.scroll_to_cursor();
+    }
+
+    fn scroll_to_cursor(&mut self) {
+        // Cursor above viewport → scroll up
+        if self.cursor_position < self.scroll_offset {
+            self.scroll_offset = self.cursor_position;
+            return;
+        }
+        // Cursor below viewport → scroll down
+        let visible_count = self.viewport_entries_from(self.scroll_offset);
+        let last_visible = self.scroll_offset + visible_count.saturating_sub(1);
+        if self.cursor_position > last_visible {
+            // Walk backward from cursor to find scroll_offset that makes cursor the last visible entry
+            let mut display_lines = 0;
+            let mut new_offset = self.cursor_position;
+            for i in (0..=self.cursor_position).rev() {
+                let idx = self.filtered_indices[i];
+                let lines = self.display_line_count(idx);
+                if display_lines + lines > self.viewport_height {
+                    break;
+                }
+                display_lines += lines;
+                new_offset = i;
+            }
+            self.scroll_offset = new_offset;
+        }
+    }
+
     // Help overlay methods
 
     pub fn toggle_help(&mut self) {
@@ -292,6 +371,9 @@ impl App {
         self.filtered_indices = result.indices;
         self.is_fuzzy = result.is_fuzzy;
         self.scroll_offset = 0;
+        if self.mode == AppMode::Cursor {
+            self.cursor_position = 0;
+        }
     }
 
     // Follow mode methods
