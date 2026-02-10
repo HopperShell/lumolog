@@ -6,7 +6,8 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
 use crate::app::{App, AppMode};
 use crate::highlighter::{
-    TokenKind, highlight_line, highlight_line_expanded, tokenize_with_metadata,
+    TokenKind, apply_search_highlight, highlight_line, highlight_line_expanded,
+    tokenize_with_metadata,
 };
 use crate::parser::LogFormat;
 use crate::parser::LogLevel;
@@ -29,11 +30,23 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // Compute line number width from total line count
     let line_num_width = format!("{}", app.total_lines_unfiltered()).len().max(3);
 
+    let search_pattern: Option<&str> = if !app.filter_pattern().is_empty() && !app.is_fuzzy() {
+        Some(app.filter_pattern())
+    } else {
+        None
+    };
+
     let all_display_lines: Vec<Line> = if app.is_pretty() {
         app.visible_parsed_lines_numbered()
             .iter()
             .flat_map(|(line_num, parsed)| {
                 let mut expanded = highlight_line_expanded(parsed, true);
+                if let Some(pattern) = search_pattern {
+                    expanded = expanded
+                        .into_iter()
+                        .map(|l| apply_search_highlight(l, pattern))
+                        .collect();
+                }
                 // Add line number prefix only to the first line of each expanded group
                 if let Some(first) = expanded.first_mut() {
                     let prefix = Span::styled(
@@ -62,6 +75,9 @@ pub fn render(frame: &mut Frame, app: &mut App) {
                     Style::default().fg(Color::DarkGray),
                 );
                 let mut highlighted = highlight_line(parsed);
+                if let Some(pattern) = search_pattern {
+                    highlighted = apply_search_highlight(highlighted, pattern);
+                }
                 highlighted.spans.insert(0, prefix);
                 highlighted
             })
