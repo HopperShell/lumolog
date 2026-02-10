@@ -45,6 +45,7 @@ pub struct App {
     mode: AppMode,
     filter_pattern: String,
     filtered_indices: Vec<usize>,
+    is_fuzzy: bool,
     json_pretty: bool,
     show_help: bool,
     source_name: String,
@@ -76,6 +77,7 @@ impl App {
             mode: AppMode::Normal,
             filter_pattern: String::new(),
             filtered_indices,
+            is_fuzzy: false,
             json_pretty: false,
             show_help: false,
             source_name: String::from("stdin"),
@@ -201,6 +203,10 @@ impl App {
         &self.filter_pattern
     }
 
+    pub fn is_fuzzy(&self) -> bool {
+        self.is_fuzzy
+    }
+
     pub fn enter_filter_mode(&mut self) {
         self.mode = AppMode::Filter;
     }
@@ -228,6 +234,7 @@ impl App {
     fn recompute_filter(&mut self) {
         let result = filter_lines(&self.parsed_lines, &self.filter_pattern, self.min_level);
         self.filtered_indices = result.indices;
+        self.is_fuzzy = result.is_fuzzy;
         self.scroll_offset = 0;
     }
 
@@ -255,6 +262,7 @@ impl App {
         // Recompute filtered indices from scratch (filter or level filter may be active)
         let result = filter_lines(&self.parsed_lines, &self.filter_pattern, self.min_level);
         self.filtered_indices = result.indices;
+        self.is_fuzzy = result.is_fuzzy;
 
         if was_at_bottom {
             self.scroll_to_bottom();
