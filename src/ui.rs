@@ -95,7 +95,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     let pct = if total == 0 {
         100
     } else {
-        ((offset + content_height).min(total) * 100) / total
+        ((offset + app.visible_entry_count()).min(total) * 100) / total
     };
 
     let mut status_parts = vec![

@@ -116,11 +116,13 @@ impl App {
     }
 
     pub fn page_down(&mut self) {
-        self.scroll_down(self.viewport_height.saturating_sub(2));
+        let step = self.viewport_entries_from(self.scroll_offset).saturating_sub(1);
+        self.scroll_down(step);
     }
 
     pub fn page_up(&mut self) {
-        self.scroll_up(self.viewport_height.saturating_sub(2));
+        let step = self.viewport_entries_from(self.scroll_offset).saturating_sub(1);
+        self.scroll_up(step);
     }
 
     pub fn scroll_to_top(&mut self) {
@@ -140,23 +142,67 @@ impl App {
     }
 
     fn clamp_scroll(&mut self) {
-        let max = self
-            .filtered_indices
-            .len()
-            .saturating_sub(self.viewport_height);
+        let entries_from_end = self.viewport_entries_from_end();
+        let max = self.filtered_indices.len().saturating_sub(entries_from_end);
         if self.scroll_offset > max {
             self.scroll_offset = max;
         }
     }
 
+    /// How many display lines does the entry at `parsed_lines[idx]` produce?
+    fn display_line_count(&self, idx: usize) -> usize {
+        if self.json_pretty {
+            if let Some(ref pj) = self.parsed_lines[idx].pretty_json {
+                return pj.lines().count() + 1; // header + JSON body lines
+            }
+        }
+        1
+    }
+
+    /// Starting at filtered entry `start`, count how many entries fit in the viewport.
+    fn viewport_entries_from(&self, start: usize) -> usize {
+        let mut display_lines = 0;
+        let mut count = 0;
+        for &idx in &self.filtered_indices[start..] {
+            let lines = self.display_line_count(idx);
+            display_lines += lines;
+            count += 1;
+            if display_lines >= self.viewport_height {
+                break;
+            }
+        }
+        count
+    }
+
+    /// Walking backward from the end, count how many entries fit in the viewport.
+    fn viewport_entries_from_end(&self) -> usize {
+        let mut display_lines = 0;
+        let mut count = 0;
+        for &idx in self.filtered_indices.iter().rev() {
+            let lines = self.display_line_count(idx);
+            display_lines += lines;
+            count += 1;
+            if display_lines >= self.viewport_height {
+                break;
+            }
+        }
+        count
+    }
+
     /// Returns (original_line_number, &ParsedLine) pairs for visible lines
     pub fn visible_parsed_lines_numbered(&self) -> Vec<(usize, &ParsedLine)> {
         let start = self.scroll_offset;
-        let end = (start + self.viewport_height).min(self.filtered_indices.len());
+        let count = self.viewport_entries_from(start);
+        let end = (start + count).min(self.filtered_indices.len());
         self.filtered_indices[start..end]
             .iter()
             .map(|&i| (i + 1, &self.parsed_lines[i])) // 1-indexed
             .collect()
+    }
+
+    /// How many filtered entries are visible in the current viewport.
+    pub fn visible_entry_count(&self) -> usize {
+        self.viewport_entries_from(self.scroll_offset)
     }
 
     pub fn format(&self) -> LogFormat {
@@ -242,10 +288,8 @@ impl App {
 
     /// Returns true if the scroll position is at or past the bottom of the content.
     pub fn is_at_bottom(&self) -> bool {
-        let max = self
-            .filtered_indices
-            .len()
-            .saturating_sub(self.viewport_height);
+        let entries_from_end = self.viewport_entries_from_end();
+        let max = self.filtered_indices.len().saturating_sub(entries_from_end);
         self.scroll_offset >= max
     }
 
