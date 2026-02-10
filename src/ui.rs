@@ -330,47 +330,88 @@ pub fn token_at_position(
     let line_num_width = format!("{}", app.total_lines_unfiltered()).len().max(3);
     let prefix_width = line_num_width + 1; // +1 for the trailing space
 
-    if click_col < prefix_width {
-        return None; // Clicked on line number
-    }
-
-    let text_col = click_col - prefix_width;
-
     // Determine which parsed line corresponds to this row
     let visible = app.visible_parsed_lines_numbered();
 
     if app.is_pretty() {
-        // In pretty mode, each parsed line may expand to multiple display rows
+        // Pretty mode: all sub-lines have a same-width prefix (blank for continuations)
+        if click_col < prefix_width {
+            return None;
+        }
+        let text_col = click_col - prefix_width;
+
         let mut display_row = 0;
         for (_line_num, parsed) in &visible {
             let expanded = highlight_line_expanded(parsed, true);
             let row_count = expanded.len();
             if click_row < display_row + row_count {
-                // The click is within this parsed line's expanded rows
-                // For pretty mode, only the raw message on each sub-line is clickable
-                // We use the raw text of this line for tokenization
                 let base_style = Style::default();
                 let tokens = tokenize_with_metadata(&parsed.message, base_style);
                 return find_token_at_col(text_col, &tokens);
             }
             display_row += row_count;
         }
+    } else if app.is_wrap() {
+        // Wrapped non-pretty: lines may span multiple display rows
+        let wrap_width = content_width as usize;
+        if wrap_width == 0 {
+            return None;
+        }
+
+        let mut display_row = 0;
+        for (_line_num, parsed) in &visible {
+            let content_len: usize = highlight_line(parsed)
+                .spans
+                .iter()
+                .map(|s| s.content.len())
+                .sum();
+            let line_display_len = prefix_width + content_len;
+            let rows = line_display_len.div_ceil(wrap_width).max(1);
+
+            if click_row < display_row + rows {
+                let sub_row = click_row - display_row;
+                // Map click back to character position in the unwrapped line
+                let abs_char_pos = sub_row * wrap_width + click_col;
+                if abs_char_pos < prefix_width {
+                    return None; // Clicked on line number prefix
+                }
+                let text_col = abs_char_pos - prefix_width;
+
+                let base_style = Style::default();
+                let text_to_tokenize = get_tokenizable_text(parsed);
+                let ts_prefix_len = get_timestamp_prefix_len(parsed);
+                let tokens = tokenize_with_metadata(text_to_tokenize, base_style);
+
+                let extra_prefix = get_highlight_prefix_len(parsed);
+                let adjusted_col = if text_col >= extra_prefix + ts_prefix_len {
+                    text_col - extra_prefix - ts_prefix_len
+                } else {
+                    return None;
+                };
+
+                return find_token_at_col(adjusted_col, &tokens);
+            }
+            display_row += rows;
+        }
     } else {
-        // Non-pretty: 1 row per visible line
+        // Non-pretty, non-wrap: 1 row per visible line
+        if click_col < prefix_width {
+            return None;
+        }
+        let text_col = click_col - prefix_width;
+
         if click_row < visible.len() {
             let (_line_num, parsed) = &visible[click_row];
-            // Tokenize the text portion (after timestamp prefix for plain/syslog, message for JSON)
             let base_style = Style::default();
             let text_to_tokenize = get_tokenizable_text(parsed);
             let ts_prefix_len = get_timestamp_prefix_len(parsed);
             let tokens = tokenize_with_metadata(text_to_tokenize, base_style);
 
-            // Adjust column for any prefix spans (level badge, timestamp) that render() adds
             let extra_prefix = get_highlight_prefix_len(parsed);
             let adjusted_col = if text_col >= extra_prefix + ts_prefix_len {
                 text_col - extra_prefix - ts_prefix_len
             } else {
-                return None; // Clicked on level/timestamp prefix
+                return None;
             };
 
             return find_token_at_col(adjusted_col, &tokens);

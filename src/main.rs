@@ -212,7 +212,7 @@ fn main() -> anyhow::Result<()> {
                                     );
                                 }
                             }
-                        } else if app.mode() == AppMode::Normal {
+                        } else if app.mode() != AppMode::Cursor {
                             if let Some((kind, value)) =
                                 ui::token_at_position(&app, mouse.column, mouse.row, terminal_area)
                             {
