@@ -226,8 +226,8 @@ impl App {
     }
 
     fn recompute_filter(&mut self) {
-        self.filtered_indices =
-            filter_lines(&self.parsed_lines, &self.filter_pattern, self.min_level);
+        let result = filter_lines(&self.parsed_lines, &self.filter_pattern, self.min_level);
+        self.filtered_indices = result.indices;
         self.scroll_offset = 0;
     }
 
@@ -253,8 +253,8 @@ impl App {
         }
 
         // Recompute filtered indices from scratch (filter or level filter may be active)
-        self.filtered_indices =
-            filter_lines(&self.parsed_lines, &self.filter_pattern, self.min_level);
+        let result = filter_lines(&self.parsed_lines, &self.filter_pattern, self.min_level);
+        self.filtered_indices = result.indices;
 
         if was_at_bottom {
             self.scroll_to_bottom();

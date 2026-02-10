@@ -15,7 +15,7 @@ fn make_line(raw: &str, level: Option<LogLevel>) -> ParsedLine {
 #[test]
 fn test_empty_pattern_returns_all() {
     let lines = vec![make_line("line one", None), make_line("line two", None)];
-    let result = filter_lines(&lines, "", None);
+    let result = filter_lines(&lines, "", None).indices;
     assert_eq!(result.len(), 2);
 }
 
@@ -26,7 +26,7 @@ fn test_case_insensitive_match() {
         make_line("INFO all good", Some(LogLevel::Info)),
         make_line("error again", Some(LogLevel::Error)),
     ];
-    let result = filter_lines(&lines, "error", None);
+    let result = filter_lines(&lines, "error", None).indices;
     assert_eq!(result.len(), 2);
 }
 
@@ -36,7 +36,7 @@ fn test_no_matches() {
         make_line("INFO all good", Some(LogLevel::Info)),
         make_line("DEBUG tracing", Some(LogLevel::Debug)),
     ];
-    let result = filter_lines(&lines, "FATAL", None);
+    let result = filter_lines(&lines, "FATAL", None).indices;
     assert_eq!(result.len(), 0);
 }
 
@@ -53,7 +53,7 @@ fn test_level_filter_warn_and_above() {
         make_line("ERROR bad", Some(LogLevel::Error)),
         make_line("no level", None),
     ];
-    let result = filter_lines(&lines, "", Some(LogLevel::Warn));
+    let result = filter_lines(&lines, "", Some(LogLevel::Warn)).indices;
     // Should include Warn, Error, and the line with no level
     assert_eq!(result, vec![2, 3, 4]);
 }
@@ -66,7 +66,7 @@ fn test_level_filter_error_only() {
         make_line("ERROR bad", Some(LogLevel::Error)),
         make_line("FATAL crash", Some(LogLevel::Fatal)),
     ];
-    let result = filter_lines(&lines, "", Some(LogLevel::Error));
+    let result = filter_lines(&lines, "", Some(LogLevel::Error)).indices;
     assert_eq!(result, vec![2, 3]);
 }
 
@@ -76,7 +76,7 @@ fn test_level_filter_none_shows_all() {
         make_line("DEBUG stuff", Some(LogLevel::Debug)),
         make_line("ERROR bad", Some(LogLevel::Error)),
     ];
-    let result = filter_lines(&lines, "", None);
+    let result = filter_lines(&lines, "", None).indices;
     assert_eq!(result, vec![0, 1]);
 }
 
@@ -89,7 +89,7 @@ fn test_level_filter_combined_with_text_filter() {
         make_line("DEBUG user cache hit", Some(LogLevel::Debug)),
     ];
     // Text filter "user" + level >= Warn
-    let result = filter_lines(&lines, "user", Some(LogLevel::Warn));
+    let result = filter_lines(&lines, "user", Some(LogLevel::Warn)).indices;
     assert_eq!(result, vec![1, 2]);
 }
 
@@ -100,7 +100,26 @@ fn test_level_filter_unclassified_lines_always_shown() {
         make_line("--- separator ---", None),
         make_line("ERROR failure", Some(LogLevel::Error)),
     ];
-    let result = filter_lines(&lines, "", Some(LogLevel::Error));
+    let result = filter_lines(&lines, "", Some(LogLevel::Error)).indices;
     // Unclassified line (None) passes through, Debug is filtered out
     assert_eq!(result, vec![1, 2]);
+}
+
+#[test]
+fn test_filter_result_exact_mode() {
+    let lines = vec![
+        make_line("ERROR something broke", Some(LogLevel::Error)),
+        make_line("INFO all good", Some(LogLevel::Info)),
+    ];
+    let result = filter_lines(&lines, "ERROR", None);
+    assert!(!result.is_fuzzy);
+    assert_eq!(result.indices, vec![0]);
+}
+
+#[test]
+fn test_filter_result_empty_pattern_not_fuzzy() {
+    let lines = vec![make_line("line one", None), make_line("line two", None)];
+    let result = filter_lines(&lines, "", None);
+    assert!(!result.is_fuzzy);
+    assert_eq!(result.indices.len(), 2);
 }
