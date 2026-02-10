@@ -213,3 +213,53 @@ fn test_parse_json_unknown_numeric_level() {
     let parsed = parse_line(line, LogFormat::Json);
     assert_eq!(parsed.level, None);
 }
+
+// ---------------------------------------------------------------------------
+// Extra fields tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_parse_json_extra_fields_captured() {
+    let line = r#"{"level":"error","message":"Failed to connect","error":"Connection refused","host":"localhost:6379"}"#;
+    let parsed = parse_line(line, LogFormat::Json);
+    assert_eq!(parsed.extra_fields.len(), 2);
+    assert!(parsed
+        .extra_fields
+        .iter()
+        .any(|(k, v)| k == "error" && v == r#""Connection refused""#));
+    assert!(parsed
+        .extra_fields
+        .iter()
+        .any(|(k, v)| k == "host" && v == r#""localhost:6379""#));
+}
+
+#[test]
+fn test_parse_json_extra_fields_numeric_values_bare() {
+    let line = r#"{"level":"info","message":"Request handled","duration_ms":23,"status":200}"#;
+    let parsed = parse_line(line, LogFormat::Json);
+    assert!(parsed
+        .extra_fields
+        .iter()
+        .any(|(k, v)| k == "duration_ms" && v == "23"));
+    assert!(parsed
+        .extra_fields
+        .iter()
+        .any(|(k, v)| k == "status" && v == "200"));
+}
+
+#[test]
+fn test_parse_json_no_extra_fields_when_only_known_keys() {
+    let line =
+        r#"{"level":"info","timestamp":"2024-01-15T08:30:05Z","message":"All fields known"}"#;
+    let parsed = parse_line(line, LogFormat::Json);
+    assert!(parsed.extra_fields.is_empty());
+}
+
+#[test]
+fn test_parse_json_all_known_keys_excluded() {
+    // Every known key variant should be excluded from extra_fields
+    let line = r#"{"level":"info","severity":"info","log.level":"info","timestamp":"t","time":"t","@timestamp":"t","ts":"t","message":"m","msg":"m","extra":"yes"}"#;
+    let parsed = parse_line(line, LogFormat::Json);
+    assert_eq!(parsed.extra_fields.len(), 1);
+    assert_eq!(parsed.extra_fields[0].0, "extra");
+}

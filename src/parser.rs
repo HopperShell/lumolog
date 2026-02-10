@@ -39,6 +39,7 @@ pub struct ParsedLine {
     pub message: String,
     pub format: LogFormat,
     pub pretty_json: Option<String>,
+    pub extra_fields: Vec<(String, String)>,
 }
 
 static SYSLOG_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -88,6 +89,30 @@ pub fn parse_line(raw: &str, format: LogFormat) -> ParsedLine {
     }
 }
 
+/// Known JSON keys that are already extracted into dedicated ParsedLine fields.
+const KNOWN_JSON_KEYS: &[&str] = &[
+    "level",
+    "severity",
+    "log.level",
+    "timestamp",
+    "time",
+    "@timestamp",
+    "ts",
+    "message",
+    "msg",
+];
+
+fn format_json_value(v: &serde_json::Value) -> String {
+    match v {
+        serde_json::Value::String(s) => format!("\"{}\"", s),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        serde_json::Value::Null => "null".to_string(),
+        // Arrays and objects: compact JSON
+        other => serde_json::to_string(other).unwrap_or_default(),
+    }
+}
+
 fn parse_json_line(raw: &str) -> ParsedLine {
     let trimmed = raw.trim();
     match serde_json::from_str::<serde_json::Value>(trimmed) {
@@ -119,6 +144,19 @@ fn parse_json_line(raw: &str) -> ParsedLine {
 
             let pretty = serde_json::to_string_pretty(&value).ok();
 
+            // Collect extra fields (keys not in KNOWN_JSON_KEYS).
+            // serde_json preserves insertion order with its default Map (backed by BTreeMap
+            // when the "preserve_order" feature is off), so keys come out alphabetically.
+            let extra_fields = value
+                .as_object()
+                .map(|obj| {
+                    obj.iter()
+                        .filter(|(k, _)| !KNOWN_JSON_KEYS.contains(&k.as_str()))
+                        .map(|(k, v)| (k.clone(), format_json_value(v)))
+                        .collect()
+                })
+                .unwrap_or_default();
+
             ParsedLine {
                 raw: raw.to_string(),
                 level,
@@ -126,6 +164,7 @@ fn parse_json_line(raw: &str) -> ParsedLine {
                 message,
                 format: LogFormat::Json,
                 pretty_json: pretty,
+                extra_fields,
             }
         }
         Err(_) => ParsedLine {
@@ -135,6 +174,7 @@ fn parse_json_line(raw: &str) -> ParsedLine {
             message: raw.to_string(),
             format: LogFormat::Json,
             pretty_json: None,
+            extra_fields: Vec::new(),
         },
     }
 }
@@ -155,6 +195,7 @@ fn parse_syslog_line(raw: &str) -> ParsedLine {
         message,
         format: LogFormat::Syslog,
         pretty_json: None,
+        extra_fields: Vec::new(),
     }
 }
 
@@ -170,6 +211,7 @@ fn parse_plain_line(raw: &str) -> ParsedLine {
         message: raw.to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     }
 }
 

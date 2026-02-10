@@ -448,6 +448,20 @@ fn highlight_json_line(parsed: &ParsedLine) -> Line<'_> {
 
     spans.extend(tokenize_with_patterns(&parsed.message, style));
 
+    if !parsed.extra_fields.is_empty() {
+        let extras: String = parsed
+            .extra_fields
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let dim_style = Style::default()
+            .fg(Color::DarkGray)
+            .add_modifier(Modifier::DIM);
+        spans.push(Span::styled("  ", dim_style));
+        spans.extend(tokenize_with_patterns(&extras, dim_style));
+    }
+
     Line::from(spans)
 }
 

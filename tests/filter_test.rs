@@ -9,6 +9,7 @@ fn make_line(raw: &str, level: Option<LogLevel>) -> ParsedLine {
         message: raw.to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     }
 }
 

@@ -11,6 +11,7 @@ fn test_error_line_has_red() {
         message: "something broke".to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_red = styled
@@ -29,6 +30,7 @@ fn test_warn_line_has_yellow() {
         message: "something iffy".to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_yellow = styled
@@ -47,6 +49,7 @@ fn test_info_line_is_dimmed() {
         message: "all good".to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_red = styled
@@ -76,6 +79,7 @@ fn test_ip_address_highlighted() {
         message: "Connected from 192.168.1.100 port 52413".to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_cyan = styled
@@ -94,6 +98,7 @@ fn test_invalid_ip_not_highlighted_as_single_span() {
         message: "Version 999.999.999.999 released".to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     // 999 > 255, so this should NOT be highlighted as a single IP span.
@@ -117,6 +122,7 @@ fn test_url_highlighted() {
         message: "Fetching https://api.example.com/data".to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_blue_underline = styled
@@ -135,6 +141,7 @@ fn test_uuid_highlighted() {
         message: "Request f47ac10b-58cc-4372-a567-0e02b2c3d479 processed".to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_magenta = styled
@@ -153,6 +160,7 @@ fn test_file_path_highlighted() {
         message: "Loading config from /etc/app/config.yaml".to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_cyan_path = styled
@@ -171,6 +179,7 @@ fn test_http_method_highlighted() {
         message: "Request: GET /api/users".to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_method = styled
@@ -192,6 +201,7 @@ fn test_quoted_string_highlighted() {
         message: r#"Cannot open file "config.yaml": permission denied"#.to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_quoted = styled
@@ -210,6 +220,7 @@ fn test_key_value_highlighted() {
         message: "host=localhost:6379 status=connected".to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_kv = styled
@@ -229,6 +240,7 @@ fn test_syslog_ip_highlighted() {
         message: "sshd[1234]: Accepted publickey from 192.168.1.100 port 52413".to_string(),
         format: LogFormat::Syslog,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_cyan = styled
@@ -247,6 +259,7 @@ fn test_json_message_patterns_highlighted() {
         message: "Connected from 10.0.0.1".to_string(),
         format: LogFormat::Json,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_cyan = styled
@@ -265,6 +278,7 @@ fn test_plain_line_without_patterns() {
         message: "Application starting up".to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     // Should still work fine - timestamp in gray, rest in green (info)
@@ -289,6 +303,7 @@ fn test_url_takes_priority_over_path() {
         message: "Fetch https://example.com/api/data done".to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     // The URL should be highlighted as a URL (blue), not as a path (cyan)
@@ -312,6 +327,7 @@ fn test_number_highlighted() {
         message: "Processed 150 records in 23ms".to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_cyan_number = styled
@@ -330,6 +346,7 @@ fn test_keyword_null_highlighted() {
         message: "Value was null for key".to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_keyword = styled
@@ -348,6 +365,7 @@ fn test_keyword_true_false_highlighted() {
         message: "verbose=true debug=false".to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_true = styled
@@ -371,6 +389,7 @@ fn test_pointer_address_highlighted() {
         message: "Segfault at address 0x7fff5fbff8c0 in thread 3".to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_pointer = styled
@@ -389,6 +408,7 @@ fn test_unix_process_highlighted() {
         message: "sshd[1234]: Accepted publickey".to_string(),
         format: LogFormat::Syslog,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_process = styled
@@ -410,6 +430,7 @@ fn test_inline_date_highlighted() {
         message: "Backup completed for date 2024-06-15T10:30:00Z successfully".to_string(),
         format: LogFormat::Plain,
         pretty_json: None,
+        extra_fields: Vec::new(),
     };
     let styled = highlight_line(&parsed);
     let has_date = styled
@@ -417,4 +438,55 @@ fn test_inline_date_highlighted() {
         .iter()
         .any(|span| span.style.fg == Some(Color::DarkGray) && span.content.contains("2024-06-15"));
     assert!(has_date, "Inline dates should be highlighted in dark gray");
+}
+
+// ---------------------------------------------------------------------------
+// Extra fields rendering tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_json_extra_fields_rendered_dimmed() {
+    let parsed = ParsedLine {
+        raw: r#"{"level":"error","message":"Failed","error":"Connection refused"}"#.to_string(),
+        level: Some(LogLevel::Error),
+        timestamp: None,
+        message: "Failed".to_string(),
+        format: LogFormat::Json,
+        pretty_json: None,
+        extra_fields: vec![("error".to_string(), r#""Connection refused""#.to_string())],
+    };
+    let styled = highlight_line(&parsed);
+    let text: String = styled.spans.iter().map(|s| s.content.to_string()).collect();
+    assert!(
+        text.contains("error="),
+        "Extra fields should appear in output: {text}"
+    );
+    // The two-space separator before extra fields should be DarkGray+DIM
+    let has_separator = styled
+        .spans
+        .iter()
+        .any(|span| span.style.fg == Some(Color::DarkGray) && span.content.as_ref() == "  ");
+    assert!(
+        has_separator,
+        "Extra fields should have a dimmed separator"
+    );
+}
+
+#[test]
+fn test_json_no_extra_fields_no_trailing_space() {
+    let parsed = ParsedLine {
+        raw: r#"{"level":"info","message":"Clean line"}"#.to_string(),
+        level: Some(LogLevel::Info),
+        timestamp: None,
+        message: "Clean line".to_string(),
+        format: LogFormat::Json,
+        pretty_json: None,
+        extra_fields: Vec::new(),
+    };
+    let styled = highlight_line(&parsed);
+    let text: String = styled.spans.iter().map(|s| s.content.to_string()).collect();
+    assert!(
+        !text.ends_with("  "),
+        "No trailing separator when extra_fields is empty"
+    );
 }
