@@ -5,6 +5,7 @@ use std::sync::LazyLock;
 pub enum LogFormat {
     Json,
     Syslog,
+    Logfmt,
     Plain,
 }
 
@@ -86,6 +87,7 @@ pub fn parse_line(raw: &str, format: LogFormat) -> ParsedLine {
     let mut parsed = match format {
         LogFormat::Json => parse_json_line(raw),
         LogFormat::Syslog => parse_syslog_line(raw),
+        LogFormat::Logfmt => parse_plain_line(raw), // temporary, will replace in Task 3
         LogFormat::Plain => parse_plain_line(raw),
     };
     parsed.template = compute_template(raw);

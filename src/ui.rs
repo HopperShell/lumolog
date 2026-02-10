@@ -108,6 +108,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     let format_label = match app.format() {
         LogFormat::Json => "JSON",
         LogFormat::Syslog => "Syslog",
+        LogFormat::Logfmt => "Logfmt",
         LogFormat::Plain => "Plain",
     };
     let pretty_indicator = if app.is_pretty() { " pretty" } else { "" };
@@ -444,7 +445,7 @@ fn find_token_at_col(
 /// Get the text that `tokenize_with_patterns` is called with for a parsed line.
 fn get_tokenizable_text(parsed: &crate::parser::ParsedLine) -> &str {
     match parsed.format {
-        LogFormat::Json => &parsed.message,
+        LogFormat::Json | LogFormat::Logfmt => &parsed.message,
         LogFormat::Plain | LogFormat::Syslog => {
             if let Some(ref ts) = parsed.timestamp {
                 if let Some(pos) = parsed.raw.find(ts.as_str()) {
@@ -460,7 +461,7 @@ fn get_tokenizable_text(parsed: &crate::parser::ParsedLine) -> &str {
 /// Returns the character length of the timestamp prefix for plain/syslog lines.
 fn get_timestamp_prefix_len(parsed: &crate::parser::ParsedLine) -> usize {
     match parsed.format {
-        LogFormat::Json => 0, // JSON timestamp is handled in extra prefix
+        LogFormat::Json | LogFormat::Logfmt => 0, // JSON/Logfmt timestamp is handled in extra prefix
         LogFormat::Plain | LogFormat::Syslog => {
             if let Some(ref ts) = parsed.timestamp {
                 if let Some(pos) = parsed.raw.find(ts.as_str()) {
@@ -477,7 +478,7 @@ fn get_timestamp_prefix_len(parsed: &crate::parser::ParsedLine) -> usize {
 /// For plain/syslog: 0 (timestamp is part of raw text, handled by ts_prefix_len).
 fn get_highlight_prefix_len(parsed: &crate::parser::ParsedLine) -> usize {
     match parsed.format {
-        LogFormat::Json => {
+        LogFormat::Json | LogFormat::Logfmt => {
             let level_len = 6; // "[XXX] "
             let ts_len = parsed
                 .timestamp
