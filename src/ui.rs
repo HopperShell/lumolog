@@ -2,7 +2,7 @@ use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 
 use crate::app::{App, AppMode};
 use crate::highlighter::{
@@ -90,11 +90,15 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         LogFormat::Plain => "Plain",
     };
     let pretty_indicator = if app.is_pretty() { " pretty" } else { "" };
-    let log_view = Paragraph::new(all_display_lines).block(
+    let wrap_indicator = if app.is_wrap() { " wrap" } else { "" };
+    let mut log_view = Paragraph::new(all_display_lines).block(
         Block::default()
             .borders(Borders::ALL)
-            .title(format!("lumolog [{}{}]", format_label, pretty_indicator)),
+            .title(format!("lumolog [{}{}{}]", format_label, pretty_indicator, wrap_indicator)),
     );
+    if app.is_wrap() {
+        log_view = log_view.wrap(Wrap { trim: false });
+    }
 
     frame.render_widget(log_view, main_area);
 
@@ -237,6 +241,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             Line::from("  /            Filter (fuzzy fallback)"),
             Line::from("  v / V        Cycle log level filter"),
             Line::from("  p            Pretty-print JSON"),
+            Line::from("  w            Toggle line wrapping"),
             Line::from("  Space        Pause/resume (-f mode)"),
             Line::from("  ?            Toggle this help"),
             Line::from(""),

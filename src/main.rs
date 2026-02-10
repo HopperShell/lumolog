@@ -157,6 +157,7 @@ fn main() -> anyhow::Result<()> {
                             KeyCode::Char('G') => app.scroll_to_bottom(),
                             KeyCode::Char('/') => app.enter_filter_mode(),
                             KeyCode::Char('p') => app.toggle_pretty(),
+                            KeyCode::Char('w') => app.toggle_wrap(),
                             KeyCode::Char('v') => app.cycle_level_up(),
                             KeyCode::Char('V') => app.cycle_level_down(),
                             KeyCode::Char('?') => app.toggle_help(),

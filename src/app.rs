@@ -54,6 +54,7 @@ pub struct App {
     min_level: Option<LogLevel>,
     available_levels: Vec<LogLevel>,
     context_menu: Option<ContextMenuState>,
+    wrap: bool,
 }
 
 impl App {
@@ -86,6 +87,7 @@ impl App {
             min_level: None,
             available_levels,
             context_menu: None,
+            wrap: false,
         }
     }
 
@@ -217,6 +219,14 @@ impl App {
 
     pub fn is_pretty(&self) -> bool {
         self.json_pretty
+    }
+
+    pub fn toggle_wrap(&mut self) {
+        self.wrap = !self.wrap;
+    }
+
+    pub fn is_wrap(&self) -> bool {
+        self.wrap
     }
 
     // Help overlay methods
