@@ -353,3 +353,82 @@ fn test_plain_kv_not_detected_as_logfmt() {
     ];
     assert_eq!(detect_format(&lines), LogFormat::Plain);
 }
+
+// ---------------------------------------------------------------------------
+// Logfmt parsing tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_parse_logfmt_extracts_level() {
+    let line = r#"level=error ts=2024-01-15T08:30:05Z msg="connection refused" host=localhost:6379"#;
+    let parsed = parse_line(line, LogFormat::Logfmt);
+    assert_eq!(parsed.level, Some(LogLevel::Error));
+    assert_eq!(parsed.format, LogFormat::Logfmt);
+}
+
+#[test]
+fn test_parse_logfmt_extracts_timestamp() {
+    let line = r#"level=info ts=2024-01-15T08:30:01Z msg="server starting""#;
+    let parsed = parse_line(line, LogFormat::Logfmt);
+    assert_eq!(parsed.timestamp, Some("2024-01-15T08:30:01Z".to_string()));
+}
+
+#[test]
+fn test_parse_logfmt_extracts_message() {
+    let line = r#"level=info ts=2024-01-15T08:30:01Z msg="server starting" addr=0.0.0.0:8080"#;
+    let parsed = parse_line(line, LogFormat::Logfmt);
+    assert_eq!(parsed.message, "server starting");
+}
+
+#[test]
+fn test_parse_logfmt_msg_key() {
+    let line = r#"level=info msg="hello world""#;
+    let parsed = parse_line(line, LogFormat::Logfmt);
+    assert_eq!(parsed.message, "hello world");
+}
+
+#[test]
+fn test_parse_logfmt_message_key() {
+    let line = r#"level=info message="hello world""#;
+    let parsed = parse_line(line, LogFormat::Logfmt);
+    assert_eq!(parsed.message, "hello world");
+}
+
+#[test]
+fn test_parse_logfmt_extra_fields() {
+    let line = r#"level=info ts=2024-01-15T08:30:01Z msg="request handled" method=GET status=200 duration=23ms"#;
+    let parsed = parse_line(line, LogFormat::Logfmt);
+    assert_eq!(parsed.extra_fields.len(), 3);
+    assert!(parsed.extra_fields.iter().any(|(k, v)| k == "method" && v == "GET"));
+    assert!(parsed.extra_fields.iter().any(|(k, v)| k == "status" && v == "200"));
+    assert!(parsed.extra_fields.iter().any(|(k, v)| k == "duration" && v == "23ms"));
+}
+
+#[test]
+fn test_parse_logfmt_unquoted_msg() {
+    let line = "level=info msg=starting addr=0.0.0.0:8080";
+    let parsed = parse_line(line, LogFormat::Logfmt);
+    assert_eq!(parsed.message, "starting");
+}
+
+#[test]
+fn test_parse_logfmt_severity_key() {
+    let line = r#"severity=warn msg="disk usage high""#;
+    let parsed = parse_line(line, LogFormat::Logfmt);
+    assert_eq!(parsed.level, Some(LogLevel::Warn));
+}
+
+#[test]
+fn test_parse_logfmt_time_key() {
+    let line = r#"level=info time=2024-01-15T08:30:01Z msg="hello""#;
+    let parsed = parse_line(line, LogFormat::Logfmt);
+    assert_eq!(parsed.timestamp, Some("2024-01-15T08:30:01Z".to_string()));
+}
+
+#[test]
+fn test_parse_logfmt_quoted_value_with_spaces() {
+    let line = r#"level=error msg="connection refused" err="dial tcp 127.0.0.1:6379: connect: connection refused""#;
+    let parsed = parse_line(line, LogFormat::Logfmt);
+    assert_eq!(parsed.message, "connection refused");
+    assert!(parsed.extra_fields.iter().any(|(k, v)| k == "err" && v.contains("dial tcp")));
+}

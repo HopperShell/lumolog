@@ -100,7 +100,7 @@ pub fn parse_line(raw: &str, format: LogFormat) -> ParsedLine {
     let mut parsed = match format {
         LogFormat::Json => parse_json_line(raw),
         LogFormat::Syslog => parse_syslog_line(raw),
-        LogFormat::Logfmt => parse_plain_line(raw), // temporary, will replace in Task 3
+        LogFormat::Logfmt => parse_logfmt_line(raw),
         LogFormat::Plain => parse_plain_line(raw),
     };
     parsed.template = compute_template(raw);
@@ -119,6 +119,21 @@ const KNOWN_JSON_KEYS: &[&str] = &[
     "message",
     "msg",
 ];
+
+/// Matches a single logfmt key=value pair.
+/// Captures: (1) key, (2) quoted value without quotes, or (3) unquoted value.
+static LOGFMT_PAIR_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(\w[\w.]*)=(?:"([^"]*)"|([\S]*))"#).unwrap()
+});
+
+/// Keys that map to the dedicated `level` field.
+const LOGFMT_LEVEL_KEYS: &[&str] = &["level", "severity", "log.level"];
+
+/// Keys that map to the dedicated `timestamp` field.
+const LOGFMT_TS_KEYS: &[&str] = &["ts", "time", "timestamp", "@timestamp"];
+
+/// Keys that map to the dedicated `message` field.
+const LOGFMT_MSG_KEYS: &[&str] = &["msg", "message"];
 
 /// Combined regex matching variable tokens for structural template generation.
 /// Replaces URLs, UUIDs, dates, hex addresses, IPs, file paths, and numbers with `*`.
@@ -255,6 +270,39 @@ fn parse_plain_line(raw: &str) -> ParsedLine {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
+    }
+}
+
+fn parse_logfmt_line(raw: &str) -> ParsedLine {
+    let mut level = None;
+    let mut timestamp = None;
+    let mut message = None;
+    let mut extra_fields = Vec::new();
+
+    for caps in LOGFMT_PAIR_RE.captures_iter(raw) {
+        let key = &caps[1];
+        let value = caps.get(2).or_else(|| caps.get(3)).map(|m| m.as_str()).unwrap_or("");
+
+        if LOGFMT_LEVEL_KEYS.contains(&key) && level.is_none() {
+            level = parse_level_str(value);
+        } else if LOGFMT_TS_KEYS.contains(&key) && timestamp.is_none() {
+            timestamp = Some(value.to_string());
+        } else if LOGFMT_MSG_KEYS.contains(&key) && message.is_none() {
+            message = Some(value.to_string());
+        } else {
+            extra_fields.push((key.to_string(), value.to_string()));
+        }
+    }
+
+    ParsedLine {
+        raw: raw.to_string(),
+        level,
+        timestamp,
+        message: message.unwrap_or_else(|| raw.to_string()),
+        format: LogFormat::Logfmt,
+        pretty_json: None,
+        extra_fields,
         template: String::new(),
     }
 }
