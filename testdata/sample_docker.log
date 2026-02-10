@@ -1,0 +1,5 @@
+{"log":"2024-01-15T08:30:01Z INFO  Server starting on port 3000\n","stream":"stdout","time":"2024-01-15T08:30:01.000000000Z"}
+{"log":"2024-01-15T08:30:02Z DEBUG Loading configuration\n","stream":"stdout","time":"2024-01-15T08:30:02.000000000Z"}
+{"log":"2024-01-15T08:30:03Z WARN  Cache miss rate above threshold\n","stream":"stdout","time":"2024-01-15T08:30:03.000000000Z"}
+{"log":"2024-01-15T08:30:05Z ERROR Connection refused to database host=db:5432\n","stream":"stderr","time":"2024-01-15T08:30:05.000000000Z"}
+{"log":"2024-01-15T08:30:06Z INFO  Request handled method=GET path=/api/users status=200 duration=23ms\n","stream":"stdout","time":"2024-01-15T08:30:06.000000000Z"}

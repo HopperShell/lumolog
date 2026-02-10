@@ -118,6 +118,7 @@ const KNOWN_JSON_KEYS: &[&str] = &[
     "ts",
     "message",
     "msg",
+    "log",
 ];
 
 /// Matches a single logfmt key=value pair.
@@ -193,7 +194,9 @@ fn parse_json_line(raw: &str) -> ParsedLine {
             let message = value
                 .get("message")
                 .or_else(|| value.get("msg"))
+                .or_else(|| value.get("log"))
                 .and_then(|v| v.as_str())
+                .map(|s| s.trim_end_matches('\n'))
                 .unwrap_or(trimmed)
                 .to_string();
 

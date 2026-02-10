@@ -446,3 +446,48 @@ fn test_detect_logfmt_from_sample_file() {
     assert!(parsed.extra_fields.iter().any(|(k, _)| k == "caller"));
     assert!(parsed.extra_fields.iter().any(|(k, _)| k == "addr"));
 }
+
+// ---------------------------------------------------------------------------
+// Docker JSON log wrapper tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_docker_json_log_extracts_message() {
+    let line = r#"{"log":"Server starting on port 3000\n","stream":"stdout","time":"2024-01-15T08:30:01.000000000Z"}"#;
+    let parsed = parse_line(line, LogFormat::Json);
+    assert_eq!(parsed.message, "Server starting on port 3000");
+}
+
+#[test]
+fn test_docker_json_log_extracts_timestamp() {
+    let line = r#"{"log":"Hello\n","stream":"stdout","time":"2024-01-15T08:30:01.000000000Z"}"#;
+    let parsed = parse_line(line, LogFormat::Json);
+    assert_eq!(parsed.timestamp, Some("2024-01-15T08:30:01.000000000Z".to_string()));
+}
+
+#[test]
+fn test_docker_json_log_not_in_extra_fields() {
+    let line = r#"{"log":"Hello\n","stream":"stdout","time":"2024-01-15T08:30:01.000000000Z"}"#;
+    let parsed = parse_line(line, LogFormat::Json);
+    assert!(!parsed.extra_fields.iter().any(|(k, _)| k == "log"));
+    assert!(parsed.extra_fields.iter().any(|(k, _)| k == "stream"));
+}
+
+#[test]
+fn test_docker_json_log_strips_trailing_newline() {
+    let line = r#"{"log":"message with trailing newline\n","stream":"stdout","time":"2024-01-15T08:30:01Z"}"#;
+    let parsed = parse_line(line, LogFormat::Json);
+    assert!(!parsed.message.ends_with('\n'));
+    assert_eq!(parsed.message, "message with trailing newline");
+}
+
+#[test]
+fn test_docker_json_sample_file() {
+    let content = std::fs::read_to_string("testdata/sample_docker.log").unwrap();
+    let lines: Vec<String> = content.lines().filter(|l| !l.is_empty()).map(String::from).collect();
+    assert_eq!(detect_format(&lines), LogFormat::Json);
+
+    let parsed = parse_line(&lines[0], LogFormat::Json);
+    assert_eq!(parsed.message, "2024-01-15T08:30:01Z INFO  Server starting on port 3000");
+    assert!(parsed.timestamp.is_some());
+}
