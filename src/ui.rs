@@ -218,7 +218,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             Line::from("  j / k        Scroll down/up"),
             Line::from("  PgUp / PgDn  Page up/down"),
             Line::from("  g / G        Top / Bottom"),
-            Line::from("  /            Filter"),
+            Line::from("  /            Filter (fuzzy fallback)"),
             Line::from("  v / V        Cycle log level filter"),
             Line::from("  p            Pretty-print JSON"),
             Line::from("  Space        Pause/resume (-f mode)"),
