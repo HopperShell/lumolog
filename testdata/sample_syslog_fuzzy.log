@@ -1,0 +1,79 @@
+Feb  9 06:00:01 web01 CRON[2841]: (root) CMD (/usr/lib/apt/apt.systemd.daily)
+Feb  9 06:00:12 web01 systemd[1]: Starting Daily apt download activities...
+Feb  9 06:00:12 web01 systemd[1]: Started Daily apt download activities.
+Feb  9 06:01:33 web01 nginx[912]: 10.0.0.55 - - "GET /api/v2/users HTTP/1.1" 200 4521
+Feb  9 06:01:33 web01 nginx[912]: 10.0.0.55 - - "GET /api/v2/health HTTP/1.1" 200 15
+Feb  9 06:01:34 web01 nginx[912]: 10.0.0.88 - - "POST /api/v2/sessions HTTP/1.1" 201 832
+Feb  9 06:02:01 web01 app[3344]: INFO: Worker pool initialized with 8 threads
+Feb  9 06:02:01 web01 app[3344]: INFO: Listening on 0.0.0.0:8080
+Feb  9 06:02:05 web01 app[3344]: INFO: Connected to PostgreSQL at db01.internal:5432
+Feb  9 06:02:05 web01 app[3344]: INFO: Connected to Redis at cache01.internal:6379
+Feb  9 06:02:06 web01 app[3344]: INFO: Message queue consumer started on amqp://mq01.internal
+Feb  9 06:03:15 web01 sshd[4102]: Accepted publickey for deploy from 10.0.0.1 port 49221 ssh2
+Feb  9 06:03:15 web01 sshd[4102]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+Feb  9 06:03:18 web01 sudo[4115]: deploy : TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/usr/bin/systemctl restart app
+Feb  9 06:03:19 web01 systemd[1]: Stopping Application Service...
+Feb  9 06:03:19 web01 app[3344]: WARNING: Received SIGTERM, draining connections
+Feb  9 06:03:20 web01 app[3344]: INFO: Waiting for 12 active requests to complete
+Feb  9 06:03:22 web01 app[3344]: INFO: All requests drained, shutting down
+Feb  9 06:03:22 web01 app[3344]: INFO: Disconnected from PostgreSQL
+Feb  9 06:03:22 web01 app[3344]: INFO: Disconnected from Redis
+Feb  9 06:03:22 web01 systemd[1]: Stopped Application Service.
+Feb  9 06:03:23 web01 systemd[1]: Starting Application Service...
+Feb  9 06:03:24 web01 app[4200]: INFO: Worker pool initialized with 8 threads
+Feb  9 06:03:24 web01 app[4200]: INFO: Listening on 0.0.0.0:8080
+Feb  9 06:03:25 web01 app[4200]: ERROR: Failed to connect to Redis at cache01.internal:6379 - Connection refused
+Feb  9 06:03:26 web01 app[4200]: WARNING: Retrying Redis connection (attempt 1/5)
+Feb  9 06:03:28 web01 app[4200]: ERROR: Failed to connect to Redis at cache01.internal:6379 - Connection refused
+Feb  9 06:03:29 web01 app[4200]: WARNING: Retrying Redis connection (attempt 2/5)
+Feb  9 06:03:31 web01 app[4200]: ERROR: Failed to connect to Redis at cache01.internal:6379 - Connection refused
+Feb  9 06:03:32 web01 app[4200]: WARNING: Retrying Redis connection (attempt 3/5)
+Feb  9 06:03:34 web01 app[4200]: INFO: Connected to Redis at cache01.internal:6379
+Feb  9 06:03:34 web01 app[4200]: INFO: Connected to PostgreSQL at db01.internal:5432
+Feb  9 06:03:34 web01 app[4200]: INFO: Message queue consumer started on amqp://mq01.internal
+Feb  9 06:03:35 web01 systemd[1]: Started Application Service.
+Feb  9 06:04:00 web01 nginx[912]: 10.0.0.55 - - "GET /api/v2/users/42 HTTP/1.1" 200 1203
+Feb  9 06:04:01 web01 nginx[912]: 10.0.0.88 - - "PUT /api/v2/users/42 HTTP/1.1" 500 289
+Feb  9 06:04:01 web01 app[4200]: ERROR: Unhandled exception in PUT /api/v2/users/42
+Feb  9 06:04:01 web01 app[4200]: ERROR: NullPointerException: Cannot invoke method getName() on null reference
+Feb  9 06:04:01 web01 app[4200]: ERROR:   at com.example.UserService.updateProfile(UserService.java:142)
+Feb  9 06:04:01 web01 app[4200]: ERROR:   at com.example.UserController.handlePut(UserController.java:89)
+Feb  9 06:04:01 web01 app[4200]: ERROR:   at org.framework.RequestDispatcher.dispatch(RequestDispatcher.java:331)
+Feb  9 06:04:15 web01 nginx[912]: 10.0.0.22 - - "GET /api/v2/products HTTP/1.1" 200 8932
+Feb  9 06:04:16 web01 nginx[912]: 10.0.0.22 - - "GET /api/v2/products/99 HTTP/1.1" 404 42
+Feb  9 06:04:30 web01 app[4200]: WARNING: Slow query detected: SELECT * FROM orders WHERE user_id=42 (2341ms)
+Feb  9 06:04:45 web01 app[4200]: INFO: Garbage collection completed: freed 128MB in 45ms
+Feb  9 06:05:00 web01 kernel: [  900.123456] Out of memory: Killed process 4200 (java) total-vm:4194304kB
+Feb  9 06:05:00 web01 kernel: [  900.123789] oom-kill: memory cgroup out of memory
+Feb  9 06:05:01 web01 systemd[1]: app.service: Main process exited, code=killed, signal=KILL
+Feb  9 06:05:01 web01 systemd[1]: app.service: Failed with result 'signal'.
+Feb  9 06:05:02 web01 systemd[1]: app.service: Scheduled restart job, restart counter is at 1.
+Feb  9 06:05:03 web01 systemd[1]: Starting Application Service...
+Feb  9 06:05:04 web01 app[4500]: INFO: Worker pool initialized with 8 threads
+Feb  9 06:05:04 web01 app[4500]: INFO: Listening on 0.0.0.0:8080
+Feb  9 06:05:05 web01 app[4500]: INFO: Connected to PostgreSQL at db01.internal:5432
+Feb  9 06:05:05 web01 app[4500]: INFO: Connected to Redis at cache01.internal:6379
+Feb  9 06:05:05 web01 app[4500]: INFO: Message queue consumer started on amqp://mq01.internal
+Feb  9 06:05:06 web01 systemd[1]: Started Application Service.
+Feb  9 06:05:30 web01 app[4500]: WARNING: Certificate for api.example.com expires in 7 days
+Feb  9 06:06:00 web01 nginx[912]: 10.0.0.33 - - "GET /api/v2/dashboard HTTP/1.1" 200 15432
+Feb  9 06:06:01 web01 nginx[912]: 10.0.0.33 - - "GET /api/v2/metrics HTTP/1.1" 403 28
+Feb  9 06:06:01 web01 app[4500]: WARNING: Unauthorized access attempt to /api/v2/metrics from 10.0.0.33
+Feb  9 06:06:15 web01 app[4500]: ERROR: Timeout waiting for response from payment-service.internal:8443 after 30000ms
+Feb  9 06:06:15 web01 app[4500]: WARNING: Circuit breaker tripped for payment-service (5 failures in 60s)
+Feb  9 06:06:30 web01 app[4500]: INFO: Health check passed: PostgreSQL OK, Redis OK, MessageQueue OK
+Feb  9 06:07:00 web01 CRON[5001]: (www-data) CMD (/usr/local/bin/cleanup-temp-files.sh)
+Feb  9 06:07:01 web01 app[4500]: INFO: Temp file cleanup: removed 42 files, freed 256MB
+Feb  9 06:08:00 web01 app[4500]: WARNING: Memory usage at 85% (3.4GB/4GB) - approaching limit
+Feb  9 06:08:30 web01 app[4500]: INFO: Request rate: 1247 req/s (p99: 89ms, p50: 12ms)
+Feb  9 06:09:00 web01 sshd[5200]: Failed password for invalid user admin from 203.0.113.42 port 38221 ssh2
+Feb  9 06:09:01 web01 sshd[5200]: Failed password for invalid user admin from 203.0.113.42 port 38221 ssh2
+Feb  9 06:09:02 web01 sshd[5200]: Failed password for invalid user root from 203.0.113.42 port 38244 ssh2
+Feb  9 06:09:03 web01 sshd[5200]: Connection closed by 203.0.113.42 port 38244 [preauth]
+Feb  9 06:09:03 web01 sshd[5200]: message repeated 3 times: [ Failed password for invalid user ]
+Feb  9 06:10:00 web01 app[4500]: INFO: Database connection pool stats: active=12 idle=8 waiting=0
+Feb  9 06:10:30 web01 app[4500]: ERROR: Deadlock detected in transaction 0x7f3a2b: users <-> orders
+Feb  9 06:10:30 web01 app[4500]: WARNING: Rolling back transaction 0x7f3a2b after deadlock
+Feb  9 06:11:00 web01 logrotate[5300]: rotating /var/log/nginx/access.log
+Feb  9 06:11:00 web01 logrotate[5300]: rotating /var/log/app/application.log
+Feb  9 06:11:01 web01 nginx[912]: signal 1 (SIGHUP) received, log file reopened
