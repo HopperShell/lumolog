@@ -117,8 +117,10 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     }
 
     if !app.filter_pattern().is_empty() {
+        let mode = if app.is_fuzzy() { "~" } else { "" };
         status_parts.push(format!(
-            "Filter: \"{}\" ({} matches)",
+            "Filter{}: \"{}\" ({} matches)",
+            mode,
             app.filter_pattern(),
             total
         ));
