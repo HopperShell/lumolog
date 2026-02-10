@@ -432,3 +432,17 @@ fn test_parse_logfmt_quoted_value_with_spaces() {
     assert_eq!(parsed.message, "connection refused");
     assert!(parsed.extra_fields.iter().any(|(k, v)| k == "err" && v.contains("dial tcp")));
 }
+
+#[test]
+fn test_detect_logfmt_from_sample_file() {
+    let content = std::fs::read_to_string("testdata/sample_logfmt.log").unwrap();
+    let lines: Vec<String> = content.lines().filter(|l| !l.is_empty()).map(String::from).collect();
+    assert_eq!(detect_format(&lines), LogFormat::Logfmt);
+
+    let parsed = parse_line(&lines[0], LogFormat::Logfmt);
+    assert_eq!(parsed.level, Some(LogLevel::Info));
+    assert_eq!(parsed.timestamp, Some("2024-01-15T08:30:01Z".to_string()));
+    assert_eq!(parsed.message, "server starting");
+    assert!(parsed.extra_fields.iter().any(|(k, _)| k == "caller"));
+    assert!(parsed.extra_fields.iter().any(|(k, _)| k == "addr"));
+}
