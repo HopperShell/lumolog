@@ -480,6 +480,104 @@ fn highlight_syslog_line(parsed: &ParsedLine) -> Line<'_> {
     Line::from(tokenize_with_patterns(&parsed.raw, style))
 }
 
+/// Overlay search-match highlighting onto an already-styled Line.
+/// Finds all case-insensitive occurrences of `pattern` in the concatenated
+/// span text, splits spans at match boundaries, and applies bg(Yellow)/fg(Black).
+pub fn apply_search_highlight(line: Line<'_>, pattern: &str) -> Line<'static> {
+    if pattern.is_empty() {
+        return Line::from(
+            line.spans
+                .iter()
+                .map(|s| Span::styled(s.content.to_string(), s.style))
+                .collect::<Vec<_>>(),
+        );
+    }
+
+    let full_text: String = line.spans.iter().map(|s| s.content.as_ref()).collect();
+    let text_lower = full_text.to_lowercase();
+    let pattern_lower = pattern.to_lowercase();
+
+    // Guard: if to_lowercase() changes byte length, skip highlighting
+    if text_lower.len() != full_text.len() {
+        return Line::from(
+            line.spans
+                .iter()
+                .map(|s| Span::styled(s.content.to_string(), s.style))
+                .collect::<Vec<_>>(),
+        );
+    }
+
+    // Find all match byte ranges
+    let mut matches: Vec<(usize, usize)> = Vec::new();
+    let mut search_start = 0;
+    while let Some(pos) = text_lower[search_start..].find(&pattern_lower) {
+        let abs_start = search_start + pos;
+        let abs_end = abs_start + pattern_lower.len();
+        matches.push((abs_start, abs_end));
+        search_start = abs_end;
+    }
+
+    if matches.is_empty() {
+        return Line::from(
+            line.spans
+                .iter()
+                .map(|s| Span::styled(s.content.to_string(), s.style))
+                .collect::<Vec<_>>(),
+        );
+    }
+
+    let highlight = Style::default().bg(Color::Yellow).fg(Color::Black);
+    let mut new_spans: Vec<Span<'static>> = Vec::new();
+    let mut text_pos: usize = 0;
+    let mut match_idx: usize = 0;
+
+    for span in line.spans.iter() {
+        let span_text = span.content.as_ref();
+        let span_start = text_pos;
+        let span_end = text_pos + span_text.len();
+        let mut local_pos = span_start;
+
+        while match_idx < matches.len() && matches[match_idx].0 < span_end {
+            let (m_start, m_end) = matches[match_idx];
+
+            let effective_start = m_start.max(span_start);
+            if effective_start > local_pos {
+                new_spans.push(Span::styled(
+                    full_text[local_pos..effective_start].to_string(),
+                    span.style,
+                ));
+            }
+
+            let effective_end = m_end.min(span_end);
+            if effective_start < effective_end {
+                new_spans.push(Span::styled(
+                    full_text[effective_start..effective_end].to_string(),
+                    highlight,
+                ));
+            }
+
+            local_pos = effective_end;
+
+            if m_end <= span_end {
+                match_idx += 1;
+            } else {
+                break;
+            }
+        }
+
+        if local_pos < span_end {
+            new_spans.push(Span::styled(
+                full_text[local_pos..span_end].to_string(),
+                span.style,
+            ));
+        }
+
+        text_pos = span_end;
+    }
+
+    Line::from(new_spans)
+}
+
 /// Returns one or more Lines for a parsed line.
 /// In pretty mode for JSON, returns the expanded multi-line JSON.
 /// For everything else (or when pretty=false), returns a single line.
