@@ -1,6 +1,7 @@
-use lumolog::highlighter::highlight_line;
+use lumolog::highlighter::{apply_search_highlight, highlight_line};
 use lumolog::parser::{LogFormat, LogLevel, ParsedLine};
-use ratatui::style::Color;
+use ratatui::style::{Color, Style};
+use ratatui::text::{Line, Span};
 
 #[test]
 fn test_error_line_has_red() {
@@ -489,4 +490,85 @@ fn test_json_no_extra_fields_no_trailing_space() {
         !text.ends_with("  "),
         "No trailing separator when extra_fields is empty"
     );
+}
+
+// ---------------------------------------------------------------------------
+// Search match highlighting tests (apply_search_highlight)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_search_highlight_single_span() {
+    let line = Line::from(vec![Span::styled(
+        "Connection refused".to_string(),
+        Style::default().fg(Color::Red),
+    )]);
+    let result = apply_search_highlight(line, "connect");
+    let highlight = Style::default().bg(Color::Yellow).fg(Color::Black);
+    assert_eq!(result.spans.len(), 2);
+    assert_eq!(result.spans[0].content.as_ref(), "Connect");
+    assert_eq!(result.spans[0].style, highlight);
+    assert_eq!(result.spans[1].content.as_ref(), "ion refused");
+    assert_eq!(result.spans[1].style, Style::default().fg(Color::Red));
+}
+
+#[test]
+fn test_search_highlight_cross_span_boundary() {
+    let line = Line::from(vec![
+        Span::styled("Con".to_string(), Style::default().fg(Color::Red)),
+        Span::styled("nect".to_string(), Style::default().fg(Color::Cyan)),
+    ]);
+    let result = apply_search_highlight(line, "connect");
+    let highlight = Style::default().bg(Color::Yellow).fg(Color::Black);
+    assert_eq!(result.spans.len(), 2);
+    assert_eq!(result.spans[0].content.as_ref(), "Con");
+    assert_eq!(result.spans[0].style, highlight);
+    assert_eq!(result.spans[1].content.as_ref(), "nect");
+    assert_eq!(result.spans[1].style, highlight);
+}
+
+#[test]
+fn test_search_highlight_no_match() {
+    let line = Line::from(vec![Span::styled(
+        "Hello world".to_string(),
+        Style::default().fg(Color::Green),
+    )]);
+    let result = apply_search_highlight(line, "xyz");
+    assert_eq!(result.spans.len(), 1);
+    assert_eq!(result.spans[0].content.as_ref(), "Hello world");
+}
+
+#[test]
+fn test_search_highlight_empty_pattern() {
+    let line = Line::from(vec![Span::styled(
+        "Hello".to_string(),
+        Style::default(),
+    )]);
+    let result = apply_search_highlight(line, "");
+    assert_eq!(result.spans.len(), 1);
+}
+
+#[test]
+fn test_search_highlight_multiple_matches() {
+    let line = Line::from(vec![Span::styled(
+        "error: got error again".to_string(),
+        Style::default().fg(Color::Red),
+    )]);
+    let result = apply_search_highlight(line, "error");
+    let highlight = Style::default().bg(Color::Yellow).fg(Color::Black);
+    // "error" + ": got " + "error" + " again" = 4 spans
+    assert_eq!(result.spans.len(), 4);
+    assert_eq!(result.spans[0].style, highlight);
+    assert_eq!(result.spans[2].style, highlight);
+}
+
+#[test]
+fn test_search_highlight_case_insensitive() {
+    let line = Line::from(vec![Span::styled(
+        "ERROR occurred".to_string(),
+        Style::default().fg(Color::Red),
+    )]);
+    let result = apply_search_highlight(line, "error");
+    let highlight = Style::default().bg(Color::Yellow).fg(Color::Black);
+    assert_eq!(result.spans[0].content.as_ref(), "ERROR");
+    assert_eq!(result.spans[0].style, highlight);
 }
