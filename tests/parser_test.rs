@@ -324,3 +324,32 @@ fn test_parse_line_sets_template() {
     assert!(!parsed.template.is_empty());
     assert!(parsed.template.contains("*"));
 }
+
+#[test]
+fn test_detect_logfmt_format() {
+    let lines: Vec<String> = vec![
+        "level=info ts=2024-01-15T08:30:01Z msg=\"server starting\" addr=0.0.0.0:8080".into(),
+        "level=debug ts=2024-01-15T08:30:02Z msg=\"connected to database\" host=localhost:5432".into(),
+        "level=warn ts=2024-01-15T08:30:03Z msg=\"cache miss\" rate=0.45".into(),
+    ];
+    assert_eq!(detect_format(&lines), LogFormat::Logfmt);
+}
+
+#[test]
+fn test_detect_logfmt_without_quotes() {
+    let lines: Vec<String> = vec![
+        "level=info ts=2024-01-15T08:30:01Z msg=starting addr=0.0.0.0:8080".into(),
+        "level=debug ts=2024-01-15T08:30:02Z msg=connected host=localhost".into(),
+    ];
+    assert_eq!(detect_format(&lines), LogFormat::Logfmt);
+}
+
+#[test]
+fn test_plain_kv_not_detected_as_logfmt() {
+    // Only 1 key=value pair per line — not logfmt
+    let lines: Vec<String> = vec![
+        "2024-01-15 ERROR status=500".into(),
+        "2024-01-15 INFO Starting up".into(),
+    ];
+    assert_eq!(detect_format(&lines), LogFormat::Plain);
+}

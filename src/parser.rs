@@ -51,6 +51,11 @@ static SYSLOG_RE: LazyLock<Regex> = LazyLock::new(|| {
 static PLAIN_TIMESTAMP_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}[^\s]*)").unwrap());
 
+/// Matches individual key=value tokens for logfmt line detection.
+static LOGFMT_LINE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?:^|\s)\w[\w.]*=\S+").unwrap()
+});
+
 static LEVEL_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\b(TRACE|DEBUG|INFO|NOTICE|WARN(?:ING)?|ERROR|FATAL|CRITICAL|SEVERE|EMERGENCY|EMERG|ALERT|PANIC)\b").unwrap()
 });
@@ -78,6 +83,14 @@ pub fn detect_format(lines: &[String]) -> LogFormat {
         .count();
     if syslog_count > sample.len() / 2 {
         return LogFormat::Syslog;
+    }
+
+    let logfmt_count = sample
+        .iter()
+        .filter(|line| LOGFMT_LINE_RE.find_iter(line).count() >= 3)
+        .count();
+    if logfmt_count > sample.len() / 2 {
+        return LogFormat::Logfmt;
     }
 
     LogFormat::Plain
