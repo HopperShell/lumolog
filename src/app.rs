@@ -58,6 +58,7 @@ pub struct App {
     wrap: bool,
     cursor_position: usize,
     yank_flash: u8,
+    similar_template: Option<String>,
 }
 
 impl App {
@@ -93,6 +94,7 @@ impl App {
             wrap: false,
             cursor_position: 0,
             yank_flash: 0,
+            similar_template: None,
         }
     }
 
@@ -368,7 +370,11 @@ impl App {
 
     fn recompute_filter(&mut self) {
         let result = filter_lines(&self.parsed_lines, &self.filter_pattern, self.min_level);
-        self.filtered_indices = result.indices;
+        let mut indices = result.indices;
+        if let Some(ref tmpl) = self.similar_template {
+            indices.retain(|&i| self.parsed_lines[i].template == *tmpl);
+        }
+        self.filtered_indices = indices;
         self.is_fuzzy = result.is_fuzzy;
         self.scroll_offset = 0;
         if self.mode == AppMode::Cursor {
@@ -538,5 +544,24 @@ impl App {
     pub fn set_filter(&mut self, pattern: String) {
         self.filter_pattern = pattern;
         self.recompute_filter();
+    }
+
+    /// Filter to lines structurally similar to the current cursor line.
+    pub fn filter_by_similar(&mut self) {
+        if let Some(&idx) = self.filtered_indices.get(self.cursor_position) {
+            let tmpl = self.parsed_lines[idx].template.clone();
+            self.similar_template = Some(tmpl);
+            self.mode = AppMode::Normal;
+            self.recompute_filter();
+        }
+    }
+
+    pub fn clear_similar(&mut self) {
+        self.similar_template = None;
+        self.recompute_filter();
+    }
+
+    pub fn is_similar_filter(&self) -> bool {
+        self.similar_template.is_some()
     }
 }

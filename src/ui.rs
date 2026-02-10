@@ -164,6 +164,10 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         status_parts.push(format!("Level: {}+", min_level.short_name()));
     }
 
+    if app.is_similar_filter() {
+        status_parts.push(format!("Similar ({} matches)", total));
+    }
+
     if !app.filter_pattern().is_empty() {
         let mode = if app.is_fuzzy() { "~" } else { "" };
         status_parts.push(format!(
@@ -270,7 +274,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             Line::from("  v / V        Cycle log level filter"),
             Line::from("  p            Pretty-print JSON"),
             Line::from("  w            Toggle line wrapping"),
-            Line::from("  Enter        Cursor mode (j/k move, y yank, Esc exit)"),
+            Line::from("  Enter        Cursor mode (j/k, y yank, s similar, Esc exit)"),
             Line::from("  Space        Pause/resume (-f mode)"),
             Line::from("  ?            Toggle this help"),
             Line::from(""),

@@ -40,6 +40,7 @@ pub struct ParsedLine {
     pub format: LogFormat,
     pub pretty_json: Option<String>,
     pub extra_fields: Vec<(String, String)>,
+    pub template: String,
 }
 
 static SYSLOG_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -82,11 +83,13 @@ pub fn detect_format(lines: &[String]) -> LogFormat {
 }
 
 pub fn parse_line(raw: &str, format: LogFormat) -> ParsedLine {
-    match format {
+    let mut parsed = match format {
         LogFormat::Json => parse_json_line(raw),
         LogFormat::Syslog => parse_syslog_line(raw),
         LogFormat::Plain => parse_plain_line(raw),
-    }
+    };
+    parsed.template = compute_template(raw);
+    parsed
 }
 
 /// Known JSON keys that are already extracted into dedicated ParsedLine fields.
@@ -101,6 +104,28 @@ const KNOWN_JSON_KEYS: &[&str] = &[
     "message",
     "msg",
 ];
+
+/// Combined regex matching variable tokens for structural template generation.
+/// Replaces URLs, UUIDs, dates, hex addresses, IPs, file paths, and numbers with `*`.
+static TEMPLATE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(concat!(
+        "(?i)",
+        r#"https?://[^\s,\]>)"']+"#, "|",                                                         // URLs
+        r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "|",                    // UUIDs
+        r"\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?", "|", // Dates
+        r"0x[0-9a-f]{4,16}", "|",                                                                 // Hex
+        r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?::\d{1,5})?", "|",                                 // IPv4
+        r"(?:\./|~/|/)[\w.\-]+(?:/[\w.\-]+)+", "|",                                               // Paths
+        r"\d+(?:\.\d+)?(?:ns|µs|us|ms|s|m|h|d|KB|MB|GB|TB|%|B)?",                                 // Numbers
+    ))
+    .unwrap()
+});
+
+/// Compute a structural template by replacing all variable tokens with `*`.
+/// Two lines are "similar" if their templates match exactly.
+pub fn compute_template(raw: &str) -> String {
+    TEMPLATE_RE.replace_all(raw, "*").to_string()
+}
 
 fn format_json_value(v: &serde_json::Value) -> String {
     match v {
@@ -165,6 +190,7 @@ fn parse_json_line(raw: &str) -> ParsedLine {
                 format: LogFormat::Json,
                 pretty_json: pretty,
                 extra_fields,
+                template: String::new(),
             }
         }
         Err(_) => ParsedLine {
@@ -175,6 +201,7 @@ fn parse_json_line(raw: &str) -> ParsedLine {
             format: LogFormat::Json,
             pretty_json: None,
             extra_fields: Vec::new(),
+            template: String::new(),
         },
     }
 }
@@ -196,6 +223,7 @@ fn parse_syslog_line(raw: &str) -> ParsedLine {
         format: LogFormat::Syslog,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     }
 }
 
@@ -212,6 +240,7 @@ fn parse_plain_line(raw: &str) -> ParsedLine {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     }
 }
 

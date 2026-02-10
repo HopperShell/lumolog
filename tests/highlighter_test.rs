@@ -13,6 +13,7 @@ fn test_error_line_has_red() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_red = styled
@@ -32,6 +33,7 @@ fn test_warn_line_has_yellow() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_yellow = styled
@@ -51,6 +53,7 @@ fn test_info_line_is_dimmed() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_red = styled
@@ -81,6 +84,7 @@ fn test_ip_address_highlighted() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_cyan = styled
@@ -100,6 +104,7 @@ fn test_invalid_ip_not_highlighted_as_single_span() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     // 999 > 255, so this should NOT be highlighted as a single IP span.
@@ -124,6 +129,7 @@ fn test_url_highlighted() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_blue_underline = styled
@@ -143,6 +149,7 @@ fn test_uuid_highlighted() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_magenta = styled
@@ -162,6 +169,7 @@ fn test_file_path_highlighted() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_cyan_path = styled
@@ -181,6 +189,7 @@ fn test_http_method_highlighted() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_method = styled
@@ -203,6 +212,7 @@ fn test_quoted_string_highlighted() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_quoted = styled
@@ -222,6 +232,7 @@ fn test_key_value_highlighted() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_kv = styled
@@ -242,6 +253,7 @@ fn test_syslog_ip_highlighted() {
         format: LogFormat::Syslog,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_cyan = styled
@@ -261,6 +273,7 @@ fn test_json_message_patterns_highlighted() {
         format: LogFormat::Json,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_cyan = styled
@@ -280,6 +293,7 @@ fn test_plain_line_without_patterns() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     // Should still work fine - timestamp in gray, rest in green (info)
@@ -305,6 +319,7 @@ fn test_url_takes_priority_over_path() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     // The URL should be highlighted as a URL (blue), not as a path (cyan)
@@ -329,6 +344,7 @@ fn test_number_highlighted() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_cyan_number = styled
@@ -348,6 +364,7 @@ fn test_keyword_null_highlighted() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_keyword = styled
@@ -367,6 +384,7 @@ fn test_keyword_true_false_highlighted() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_true = styled
@@ -391,6 +409,7 @@ fn test_pointer_address_highlighted() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_pointer = styled
@@ -410,6 +429,7 @@ fn test_unix_process_highlighted() {
         format: LogFormat::Syslog,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_process = styled
@@ -432,6 +452,7 @@ fn test_inline_date_highlighted() {
         format: LogFormat::Plain,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let has_date = styled
@@ -455,6 +476,7 @@ fn test_json_extra_fields_rendered_dimmed() {
         format: LogFormat::Json,
         pretty_json: None,
         extra_fields: vec![("error".to_string(), r#""Connection refused""#.to_string())],
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let text: String = styled.spans.iter().map(|s| s.content.to_string()).collect();
@@ -483,6 +505,7 @@ fn test_json_no_extra_fields_no_trailing_space() {
         format: LogFormat::Json,
         pretty_json: None,
         extra_fields: Vec::new(),
+        template: String::new(),
     };
     let styled = highlight_line(&parsed);
     let text: String = styled.spans.iter().map(|s| s.content.to_string()).collect();

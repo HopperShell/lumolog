@@ -144,6 +144,7 @@ fn main() -> anyhow::Result<()> {
                                     }
                                 }
                             }
+                            KeyCode::Char('s') => app.filter_by_similar(),
                             KeyCode::Esc => app.exit_cursor_mode(),
                             KeyCode::Char('q') => app.quit(),
                             KeyCode::Char('?') => app.toggle_help(),
@@ -164,7 +165,14 @@ fn main() -> anyhow::Result<()> {
                                 KeyCode::Char(c) => app.filter_input(c),
                                 _ => {}
                             },
-                            KeyCode::Char('q') | KeyCode::Esc => app.quit(),
+                            KeyCode::Char('q') => app.quit(),
+                            KeyCode::Esc => {
+                                if app.is_similar_filter() {
+                                    app.clear_similar();
+                                } else {
+                                    app.quit();
+                                }
+                            }
                             KeyCode::Down | KeyCode::Char('j') => app.scroll_down(1),
                             KeyCode::Up | KeyCode::Char('k') => app.scroll_up(1),
                             KeyCode::Char(' ') if app.is_follow_mode() => app.toggle_follow_pause(),

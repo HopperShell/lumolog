@@ -1,4 +1,4 @@
-use lumolog::parser::{LogFormat, LogLevel, detect_format, parse_line};
+use lumolog::parser::{LogFormat, LogLevel, compute_template, detect_format, parse_line};
 
 // ---------------------------------------------------------------------------
 // LogLevel ordering tests
@@ -262,4 +262,65 @@ fn test_parse_json_all_known_keys_excluded() {
     let parsed = parse_line(line, LogFormat::Json);
     assert_eq!(parsed.extra_fields.len(), 1);
     assert_eq!(parsed.extra_fields[0].0, "extra");
+}
+
+// ---------------------------------------------------------------------------
+// Template computation tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_template_replaces_ip_and_number() {
+    let t = compute_template("Failed to connect to 10.0.0.5:3306 after 3 retries");
+    assert_eq!(t, "Failed to connect to * after * retries");
+}
+
+#[test]
+fn test_template_replaces_uuid() {
+    let t = compute_template("Request f47ac10b-58cc-4372-a567-0e02b2c3d479 processed");
+    assert_eq!(t, "Request * processed");
+}
+
+#[test]
+fn test_template_replaces_url() {
+    let t = compute_template("Fetching https://api.example.com/data?id=42 done");
+    assert_eq!(t, "Fetching * done");
+}
+
+#[test]
+fn test_template_replaces_timestamp() {
+    let t = compute_template("Event at 2024-01-15T08:30:00Z completed");
+    assert_eq!(t, "Event at * completed");
+}
+
+#[test]
+fn test_template_replaces_hex() {
+    let t = compute_template("Segfault at 0x7fff5fbff8c0 in thread 3");
+    assert_eq!(t, "Segfault at * in thread *");
+}
+
+#[test]
+fn test_template_replaces_path() {
+    let t = compute_template("Loading config from /etc/app/config.yaml");
+    assert_eq!(t, "Loading config from *");
+}
+
+#[test]
+fn test_template_similar_lines_match() {
+    let a = compute_template("Failed to connect to 10.0.0.5:3306 after 3 retries");
+    let b = compute_template("Failed to connect to 192.168.1.1:5432 after 10 retries");
+    assert_eq!(a, b);
+}
+
+#[test]
+fn test_template_different_structure_no_match() {
+    let a = compute_template("Failed to connect to 10.0.0.5:3306 after 3 retries");
+    let b = compute_template("User 42 logged in from 10.0.0.5");
+    assert_ne!(a, b);
+}
+
+#[test]
+fn test_parse_line_sets_template() {
+    let parsed = parse_line("2024-01-15 ERROR Connection to 10.0.0.1 refused", LogFormat::Plain);
+    assert!(!parsed.template.is_empty());
+    assert!(parsed.template.contains("*"));
 }
