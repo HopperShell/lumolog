@@ -48,6 +48,29 @@ fn execute_action(action: MenuAction, value: String, app: &mut App) {
     }
 }
 
+fn dispatch_action(action: command::Action, app: &mut App) {
+    use command::Action::*;
+    match action {
+        Quit => app.quit(),
+        ScrollDown => app.scroll_down(1),
+        ScrollUp => app.scroll_up(1),
+        ScrollLeft => app.scroll_left(1),
+        ScrollRight => app.scroll_right(1),
+        PageDown => app.page_down(),
+        PageUp => app.page_up(),
+        ScrollToTop => app.scroll_to_top(),
+        ScrollToBottom => app.scroll_to_bottom(),
+        OpenFilter => app.enter_filter_mode(),
+        CycleLevelUp => app.cycle_level_up(),
+        CycleLevelDown => app.cycle_level_down(),
+        TogglePretty => app.toggle_pretty(),
+        ToggleWrap => app.toggle_wrap(),
+        EnterCursorMode => app.enter_cursor_mode(),
+        ToggleFollowPause => app.toggle_follow_pause(),
+        OpenCommandPalette => app.open_palette(),
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
@@ -115,11 +138,19 @@ fn main() -> anyhow::Result<()> {
         if event::poll(Duration::from_millis(50))? {
             match event::read()? {
                 Event::Key(key) if key.kind == KeyEventKind::Press => {
-                    // When help is shown, any key dismisses it (except q which still quits)
-                    if app.show_help() {
+                    if app.mode() == AppMode::CommandPalette {
                         match key.code {
-                            KeyCode::Char('q') | KeyCode::Esc => app.quit(),
-                            _ => app.toggle_help(),
+                            KeyCode::Esc => app.close_palette(),
+                            KeyCode::Up => app.palette_up(),
+                            KeyCode::Down => app.palette_down(),
+                            KeyCode::Enter => {
+                                if let Some(action) = app.palette_execute() {
+                                    dispatch_action(action, &mut app);
+                                }
+                            }
+                            KeyCode::Backspace => app.palette_backspace(),
+                            KeyCode::Char(c) => app.palette_type(c),
+                            _ => {}
                         }
                     } else if app.mode() == AppMode::ContextMenu {
                         match key.code {
@@ -150,7 +181,7 @@ fn main() -> anyhow::Result<()> {
                             KeyCode::Left | KeyCode::Char('h') => app.scroll_left(1),
                             KeyCode::Esc => app.exit_cursor_mode(),
                             KeyCode::Char('q') => app.quit(),
-                            KeyCode::Char('?') => app.toggle_help(),
+                            KeyCode::Char('?') => app.open_palette(),
                             _ => {}
                         }
                     } else {
@@ -190,7 +221,7 @@ fn main() -> anyhow::Result<()> {
                             KeyCode::Char('w') => app.toggle_wrap(),
                             KeyCode::Char('v') => app.cycle_level_up(),
                             KeyCode::Char('V') => app.cycle_level_down(),
-                            KeyCode::Char('?') => app.toggle_help(),
+                            KeyCode::Char('?') => app.open_palette(),
                             KeyCode::Enter => app.enter_cursor_mode(),
                             _ => {}
                         }

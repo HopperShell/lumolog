@@ -50,7 +50,6 @@ pub struct App {
     filtered_indices: Vec<usize>,
     is_fuzzy: bool,
     json_pretty: bool,
-    show_help: bool,
     source_name: String,
     follow_mode: bool,
     follow_paused: bool,
@@ -90,7 +89,6 @@ impl App {
             filtered_indices,
             is_fuzzy: false,
             json_pretty: false,
-            show_help: false,
             source_name: String::from("stdin"),
             follow_mode: false,
             follow_paused: false,
@@ -335,16 +333,6 @@ impl App {
             }
             self.scroll_offset = new_offset;
         }
-    }
-
-    // Help overlay methods
-
-    pub fn toggle_help(&mut self) {
-        self.show_help = !self.show_help;
-    }
-
-    pub fn show_help(&self) -> bool {
-        self.show_help
     }
 
     // Source name methods
