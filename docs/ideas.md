@@ -7,7 +7,6 @@ Core differentiator vs tailspin: tailspin makes text pretty. Lumolog *understand
 Polish the core UX before adding big features. These are low-medium effort and make the tool feel complete.
 
 - **Fix Esc behavior** — Esc in normal mode quits the app, which is hostile. Users expect "go back", not "exit". Change: Esc always means "cancel/back" (exit cursor, close palette, clear filter, clear similar). Only `q` quits. Low effort, high trust gain.
-- **Match count in filter bar** — while typing a filter, users have no feedback on match count or whether fuzzy kicked in. Show `/ error  (142 matches)` or `/ conref  (~ 38 fuzzy)` inline in the filter bar. Data already exists in `filtered_indices.len()` and `is_fuzzy`. Touches: `ui.rs`.
 - **Go-to-line** — no way to jump to a specific line number. Stack traces, error messages, and cross-referencing all need this. Add a `GoToLine` action in the command palette that opens a small input prompt. Touches: `command.rs`, `app.rs`, `ui.rs`, `main.rs`.
 - **Incremental search (n/N jump)** — filter mode hides non-matching lines entirely. Add a search mode where matches are highlighted in-place and `n`/`N` jumps to the next/previous match without hiding anything. Like `/pattern` then `n` in less/vim. Touches: `app.rs`, `main.rs`, `ui.rs`.
 - **Stats bar** — `parsed_lines` already has `level` on every entry. Scan once -> `HashMap<LogLevel, usize>` counts. Render as a compact colored row above the status bar: `E:42 W:130 I:1204`. Click a count to filter by that level (mouse integration already exists). Touches: `app.rs`, `ui.rs`.
@@ -28,7 +27,116 @@ Polish the core UX before adding big features. These are low-medium effort and m
 
 ## Stretch / Future
 
-- **SQL query interface** — press `;` to query logs like a database via embedded SQLite. `SELECT level, COUNT(*) FROM logs WHERE timestamp > '14:30' GROUP BY level`. Power-user killer feature (lnav's most cited differentiator). Big lift but transformative.
+- **LQL (Lumolog Query Language)** — a purpose-built log query language that replaces the SQL idea. Press `;` to open a query bar. Pipe-based, reads left to right, uses log-specific vocabulary instead of SQL keywords. Designed so you never have to google the syntax.
+
+  **Why not SQL:** SQL is powerful but wrong-shaped for log exploration. Nobody remembers `GROUP BY` vs `ORDER BY` vs `HAVING` under pressure. JOINs, subqueries, and date functions are arcane. Splunk, Datadog, and Grafana all built custom query languages for exactly this reason — domain-specific beats general-purpose for domain-specific tasks.
+
+  **Core syntax — pipes and filters:**
+  ```
+  # Every query is a pipeline. Each stage filters or transforms.
+  # Start with everything, narrow down left to right.
+
+  errors                              # text search (same as / filter)
+  level error                         # filter by level
+  last 1h                             # time range
+  service auth                        # match field value
+  "connection refused"                 # exact phrase
+
+  # Chain with pipes
+  level error | last 1h                          # errors in the last hour
+  level error | last 1h | group service          # ...grouped by service
+  level error | last 1h | group service | top 5  # ...top 5 services
+  ```
+
+  **Filter stages** (narrow down what you see):
+  ```
+  level error warn           # level filter (multiple = OR)
+  last 5m / 15m / 1h / 24h  # relative time presets
+  since 14:00                # absolute start time
+  between 14:00 16:30        # absolute time range
+  field service = "auth"     # match a structured field
+  field status >= 500        # numeric field comparison
+  similar "connection reset" # template matching (like s in cursor mode)
+  regex "timeout|refused"    # regex mode
+  not "healthcheck"          # exclude lines matching text
+  ```
+
+  **Aggregation stages** (summarize data):
+  ```
+  count                      # total matching lines
+  count by minute            # time-bucketed counts (mini histogram)
+  count by level             # count per level
+  group service              # group by field, show counts
+  top                        # top 10 (default)
+  top 5                      # top 5
+  top 50 service             # top 50 by field
+  avg response_time          # numeric field average
+  p99 response_time          # percentile
+  ```
+
+  **Display/action stages** (what to do with results):
+  ```
+  fields timestamp level message   # show only these fields (column view)
+  sort timestamp desc              # sort results
+  tail                             # last 20 lines (default)
+  tail 100                         # last 100 lines
+  head                             # first 20 lines (default)
+  head 100                         # first 100 lines
+  export /tmp/errors.log           # save to file
+  yank                             # copy to clipboard
+  ```
+
+  **Design principle — every argument has a sensible default:**
+  Every number and modifier is optional. Defaults are whatever you'd pick 80% of the time:
+  ```
+  top         → top 10
+  head        → head 20
+  tail        → tail 20
+  last        → last 15m
+  count by    → count by minute
+  sort        → sort timestamp desc
+  group       → group + count, sorted desc
+  ```
+  You can always be specific (`top 50`, `last 4h`, `count by hour`), but the lazy version should just work. Typing more only narrows or refines — never required.
+
+  **Real-world examples:**
+  ```
+  # "What's failing in auth right now?"
+  level error | last 15m | service auth
+
+  # "Show me the top errors this hour"
+  level error | last 1h | group message | top 10
+
+  # "How many requests per minute were there?"
+  count by minute
+
+  # "P99 latency for the API service today"
+  service api | last 24h | p99 field duration
+
+  # "Export all timeout errors for the incident report"
+  "timeout" | level error | between 14:30 15:45 | export ~/incident.log
+
+  # Just poke around — each stage narrows interactively
+  level warn error
+  ```
+
+  **Implementation approach:**
+  - New module `src/lql.rs` — tokenizer + pipeline executor
+  - Each stage maps to an operation on `filtered_indices` or a new aggregation pass
+  - Most filter stages already exist internally (`recompute_filter`, `filter_by_time_range`, template matching)
+  - Aggregation stages are new but straightforward — iterate `filtered_indices`, bucket/count/sort
+  - Results display in a temporary overlay or replace the main view (toggle back with Esc)
+  - Autocomplete in query bar: field names from parsed data, stage keywords, time presets
+  - History with up/down arrows (persist across sessions in `~/.config/lumolog/history`)
+  - Query bar shows live result count as you type each stage, like the filter bar
+
+  **Why this wins:**
+  - Zero learning curve — reads like English, no SQL to memorize
+  - Maps 1:1 to lumolog's existing pipeline architecture
+  - Every keyboard shortcut becomes a named stage (so the query bar and keyboard are two interfaces to the same engine)
+  - Autocomplete makes it self-documenting
+  - Can add an optional AI layer later: natural language → LQL (much easier than NL → SQL, and the generated query is readable/editable)
+
 - **Session persistence** — save bookmarks, filters, scroll position to `~/.lumolog/sessions/{file_hash}.json`. Auto-restore on reopen. Makes lumolog investigation-grade for multi-hour debugging sessions.
 - **Error grouping** — cluster similar error messages (fuzzy dedup). Show a count badge and expand to see individual occurrences. Great for noisy logs with thousands of the same stack trace.
 - **Mouse extras** — click line to bookmark, drag to select & copy text region, click stats bar counts to filter by level.
@@ -76,3 +184,4 @@ Polish the core UX before adding big features. These are low-medium effort and m
 - ~~**Horizontal scroll**~~ — `h`/`l`/Left/Right arrows pan horizontally when wrap is off. Mouse horizontal scroll on supported terminals (Ghostty, Kitty, WezTerm). Status bar shows `Col: N` indicator. Toggling wrap resets scroll to 0.
 - ~~**Command palette**~~ — `?` opens a fuzzy-searchable command palette (replaced the static help overlay). Shows all actions with keybindings, type to filter via `nucleo-matcher`, arrow keys to select, Enter to execute. Single command registry in `command.rs` is the source of truth — adding a command is one entry. Includes `y` yank line and `Y` yank all filtered lines.
 - ~~**Time range filtering (Kibana-style)**~~ — sparkline density bar at top shows log volume over time. `t` enters time mode with keyboard cursor (`h`/`l` to move, `[`/`]` to mark range, `1`–`4` for presets). Mouse click-drag on sparkline selects range instantly. `Y` yanks all filtered lines from any mode. Composes with text, level, and template filters. Supports 10+ timestamp formats (RFC3339, syslog, klog, epoch, Apache CLF, etc.).
+- ~~**Match count in filter bar**~~ — live match count and fuzzy indicator shown inline in filter bar while typing. `/ error  (142 matches)` or `/ conref  (~38 fuzzy)`.
