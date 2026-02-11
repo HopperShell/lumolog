@@ -305,12 +305,20 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         };
 
         // Command rows
-        for (display_idx, &cmd_idx) in filtered.iter().skip(scroll_offset).take(max_visible).enumerate() {
+        for (display_idx, &cmd_idx) in filtered
+            .iter()
+            .skip(scroll_offset)
+            .take(max_visible)
+            .enumerate()
+        {
             let cmd = &cmds[cmd_idx];
             let is_selected = scroll_offset + display_idx == selected;
 
             let name_style = if is_selected {
-                Style::default().fg(Color::Black).bg(Color::Cyan).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::White)
             };
