@@ -1,3 +1,4 @@
+use crate::command;
 use crate::filter::filter_lines;
 use crate::highlighter::TokenKind;
 use crate::parser::{LogFormat, LogLevel, ParsedLine, detect_format, parse_line};
@@ -9,6 +10,7 @@ pub enum AppMode {
     Filter,
     ContextMenu,
     Cursor,
+    CommandPalette,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,6 +62,9 @@ pub struct App {
     cursor_position: usize,
     yank_flash: u8,
     similar_template: Option<String>,
+    palette_input: String,
+    palette_selected: usize,
+    palette_filtered: Vec<usize>,
 }
 
 impl App {
@@ -97,6 +102,9 @@ impl App {
             cursor_position: 0,
             yank_flash: 0,
             similar_template: None,
+            palette_input: String::new(),
+            palette_selected: 0,
+            palette_filtered: (0..command::commands().len()).collect(),
         }
     }
 
@@ -582,5 +590,90 @@ impl App {
 
     pub fn is_similar_filter(&self) -> bool {
         self.similar_template.is_some()
+    }
+
+    // Command palette methods
+
+    pub fn open_palette(&mut self) {
+        self.palette_input.clear();
+        self.palette_selected = 0;
+        self.palette_filtered = (0..command::commands().len()).collect();
+        self.mode = AppMode::CommandPalette;
+    }
+
+    pub fn close_palette(&mut self) {
+        self.mode = AppMode::Normal;
+    }
+
+    pub fn palette_input(&self) -> &str {
+        &self.palette_input
+    }
+
+    pub fn palette_filtered(&self) -> &[usize] {
+        &self.palette_filtered
+    }
+
+    pub fn palette_selected(&self) -> usize {
+        self.palette_selected
+    }
+
+    pub fn palette_type(&mut self, c: char) {
+        self.palette_input.push(c);
+        self.recompute_palette();
+    }
+
+    pub fn palette_backspace(&mut self) {
+        self.palette_input.pop();
+        self.recompute_palette();
+    }
+
+    pub fn palette_up(&mut self) {
+        self.palette_selected = self.palette_selected.saturating_sub(1);
+    }
+
+    pub fn palette_down(&mut self) {
+        if self.palette_selected + 1 < self.palette_filtered.len() {
+            self.palette_selected += 1;
+        }
+    }
+
+    pub fn palette_execute(&mut self) -> Option<command::Action> {
+        let &idx = self.palette_filtered.get(self.palette_selected)?;
+        let action = command::commands()[idx].action;
+        self.close_palette();
+        Some(action)
+    }
+
+    fn recompute_palette(&mut self) {
+        let cmds = command::commands();
+        if self.palette_input.is_empty() {
+            self.palette_filtered = (0..cmds.len()).collect();
+        } else {
+            use nucleo_matcher::pattern::{AtomKind, CaseMatching, Normalization, Pattern};
+            use nucleo_matcher::{Config, Matcher, Utf32Str};
+
+            let mut matcher = Matcher::new(Config::DEFAULT);
+            let pat = Pattern::new(
+                &self.palette_input,
+                CaseMatching::Ignore,
+                Normalization::Smart,
+                AtomKind::Fuzzy,
+            );
+            let mut buf = Vec::new();
+
+            // Collect (index, score) pairs, then sort by score descending
+            let mut scored: Vec<(usize, u32)> = cmds
+                .iter()
+                .enumerate()
+                .filter_map(|(i, cmd)| {
+                    buf.clear();
+                    let haystack = Utf32Str::new(cmd.name, &mut buf);
+                    pat.score(haystack, &mut matcher).map(|s| (i, s))
+                })
+                .collect();
+            scored.sort_by(|a, b| b.1.cmp(&a.1));
+            self.palette_filtered = scored.into_iter().map(|(i, _)| i).collect();
+        }
+        self.palette_selected = 0;
     }
 }
