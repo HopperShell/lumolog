@@ -157,8 +157,20 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 
     // Render filter bar if in filter mode
     if app.is_filter_mode() {
-        let filter_text = format!("/{}", app.filter_pattern());
-        let filter_bar = Paragraph::new(filter_text).style(Style::default().fg(Color::Cyan));
+        let mut spans = vec![Span::styled(
+            format!("/{}", app.filter_pattern()),
+            Style::default().fg(Color::Cyan),
+        )];
+        if !app.filter_pattern().is_empty() {
+            let count = app.total_lines();
+            let label = if app.is_fuzzy() {
+                format!("  (~{} fuzzy)", count)
+            } else {
+                format!("  ({} matches)", count)
+            };
+            spans.push(Span::styled(label, Style::default().fg(Color::DarkGray)));
+        }
+        let filter_bar = Paragraph::new(Line::from(spans));
         frame.render_widget(filter_bar, filter_area);
     }
 
