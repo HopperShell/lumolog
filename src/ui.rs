@@ -269,43 +269,85 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         frame.render_widget(menu_block, menu_area);
     }
 
-    // Help overlay
-    if app.show_help() {
-        let help_text = vec![
-            Line::from(""),
-            Line::from(Span::styled(
-                "  Keybindings",
-                Style::default().add_modifier(Modifier::BOLD),
-            )),
-            Line::from(""),
-            Line::from("  q / Esc      Quit"),
-            Line::from("  j / k        Scroll down/up"),
-            Line::from("  h / l / \u{2190} \u{2192}  Scroll left/right"),
-            Line::from("  PgUp / PgDn  Page up/down"),
-            Line::from("  g / G        Top / Bottom"),
-            Line::from("  /            Filter (fuzzy fallback)"),
-            Line::from("  v / V        Cycle log level filter"),
-            Line::from("  p            Pretty-print JSON"),
-            Line::from("  w            Toggle line wrapping"),
-            Line::from("  Enter        Cursor mode (j/k, y yank, s similar, Esc exit)"),
-            Line::from("  Space        Pause/resume (-f mode)"),
-            Line::from("  ?            Toggle this help"),
-            Line::from(""),
-        ];
+    // Command palette overlay
+    if app.mode() == AppMode::CommandPalette {
+        let cmds = crate::command::commands();
+        let filtered = app.palette_filtered();
+        let selected = app.palette_selected();
+        let input = app.palette_input();
 
-        // Center the overlay
-        let help_width = 40u16;
-        let help_height = help_text.len() as u16 + 2; // +2 for border
-        let x = (area.width.saturating_sub(help_width)) / 2;
-        let y = (area.height.saturating_sub(help_height)) / 2;
-        let help_area = Rect::new(x, y, help_width, help_height);
+        let palette_width = 50u16;
+        let max_visible = 12usize;
+        let visible_count = filtered.len().min(max_visible);
+        // 1 for input line + visible items + 2 for border
+        let palette_height = (visible_count as u16 + 3).min(area.height);
 
-        let help_block = Paragraph::new(help_text)
-            .block(Block::default().borders(Borders::ALL).title("Help"))
+        let x = (area.width.saturating_sub(palette_width)) / 2;
+        let y = (area.height.saturating_sub(palette_height)) / 2;
+        let palette_area = Rect::new(x, y, palette_width, palette_height);
+
+        // Build lines: input row, then filtered commands
+        let mut lines_vec: Vec<Line> = Vec::new();
+
+        // Input line with cursor
+        let input_line = Line::from(vec![
+            Span::styled("> ", Style::default().fg(Color::Cyan)),
+            Span::raw(input),
+            Span::styled("_", Style::default().fg(Color::DarkGray)),
+        ]);
+        lines_vec.push(input_line);
+
+        // Scroll the list so selected item is always visible
+        let scroll_offset = if selected >= max_visible {
+            selected - max_visible + 1
+        } else {
+            0
+        };
+
+        // Command rows
+        for (display_idx, &cmd_idx) in filtered.iter().skip(scroll_offset).take(max_visible).enumerate() {
+            let cmd = &cmds[cmd_idx];
+            let is_selected = scroll_offset + display_idx == selected;
+
+            let name_style = if is_selected {
+                Style::default().fg(Color::Black).bg(Color::Cyan).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+
+            let key_str = cmd.keybinding.unwrap_or("");
+            let name_display = &cmd.name[..cmd.name.len().min(30)];
+            let inner_width = palette_width as usize - 4; // 2 border + 2 padding
+            let padding = inner_width.saturating_sub(name_display.len() + key_str.len());
+            let pad = " ".repeat(padding.max(1));
+
+            let key_style = if is_selected {
+                Style::default().fg(Color::DarkGray).bg(Color::Cyan)
+            } else {
+                Style::default().fg(Color::DarkGray)
+            };
+
+            let bg_style = if is_selected {
+                Style::default().bg(Color::Cyan)
+            } else {
+                Style::default()
+            };
+
+            lines_vec.push(Line::from(vec![
+                Span::styled(" ", bg_style),
+                Span::styled(name_display, name_style),
+                Span::styled(pad, bg_style),
+                Span::styled(key_str, key_style),
+                Span::styled(" ", bg_style),
+            ]));
+        }
+
+        let palette_block = Paragraph::new(lines_vec)
+            .block(Block::default().borders(Borders::ALL).title("Commands"))
             .style(Style::default().fg(Color::White).bg(Color::Black));
 
-        frame.render_widget(Clear, help_area);
-        frame.render_widget(help_block, help_area);
+        frame.render_widget(Clear, palette_area);
+        frame.render_widget(palette_block, palette_area);
     }
 }
 
