@@ -1,5 +1,10 @@
-{"log":"2024-01-15T08:30:01Z INFO  Server starting on port 3000\n","stream":"stdout","time":"2024-01-15T08:30:01.000000000Z"}
-{"log":"2024-01-15T08:30:02Z DEBUG Loading configuration\n","stream":"stdout","time":"2024-01-15T08:30:02.000000000Z"}
-{"log":"2024-01-15T08:30:03Z WARN  Cache miss rate above threshold\n","stream":"stdout","time":"2024-01-15T08:30:03.000000000Z"}
-{"log":"2024-01-15T08:30:05Z ERROR Connection refused to database host=db:5432\n","stream":"stderr","time":"2024-01-15T08:30:05.000000000Z"}
-{"log":"2024-01-15T08:30:06Z INFO  Request handled method=GET path=/api/users status=200 duration=23ms\n","stream":"stdout","time":"2024-01-15T08:30:06.000000000Z"}
+{"log":"Starting myapp v2.4.1\n","stream":"stdout","time":"2024-01-15T08:30:00.100000000Z"}
+{"log":"2024-01-15T08:30:01Z INFO  Listening on 0.0.0.0:3000\n","stream":"stdout","time":"2024-01-15T08:30:01.200000000Z"}
+{"log":"2024-01-15T08:30:02Z DEBUG Loading config from /etc/myapp/config.yaml\n","stream":"stdout","time":"2024-01-15T08:30:02.300000000Z"}
+{"log":"2024-01-15T08:30:03Z WARN  Cache miss rate above threshold (82%)\n","stream":"stdout","time":"2024-01-15T08:30:03.400000000Z"}
+{"log":"2024-01-15T08:30:04Z INFO  GET /api/users 200 23ms\n","stream":"stdout","time":"2024-01-15T08:30:04.500000000Z"}
+{"log":"2024-01-15T08:30:05Z ERROR Connection refused: dial tcp 10.0.0.5:5432\n","stream":"stderr","time":"2024-01-15T08:30:05.600000000Z"}
+{"log":"panic: runtime error: index out of range [3] with length 2\n","stream":"stderr","time":"2024-01-15T08:30:06.700000000Z"}
+{"log":"\n","stream":"stdout","time":"2024-01-15T08:30:06.800000000Z"}
+{"log":"goroutine 1 [running]:\n","stream":"stderr","time":"2024-01-15T08:30:06.900000000Z"}
+{"log":"main.handleRequest(0xc0001a2000)\n","stream":"stderr","time":"2024-01-15T08:30:07.000000000Z"}
