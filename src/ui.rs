@@ -125,6 +125,8 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     );
     if app.is_wrap() {
         log_view = log_view.wrap(Wrap { trim: false });
+    } else if app.h_scroll() > 0 {
+        log_view = log_view.scroll((0, app.h_scroll() as u16));
     }
 
     frame.render_widget(log_view, main_area);
@@ -172,6 +174,10 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 
     if app.is_similar_filter() {
         status_parts.push(format!("Similar ({} matches)", total));
+    }
+
+    if app.h_scroll() > 0 {
+        status_parts.push(format!("Col: {}", app.h_scroll()));
     }
 
     if !app.filter_pattern().is_empty() {
@@ -274,6 +280,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             Line::from(""),
             Line::from("  q / Esc      Quit"),
             Line::from("  j / k        Scroll down/up"),
+            Line::from("  h / l / \u{2190} \u{2192}  Scroll left/right"),
             Line::from("  PgUp / PgDn  Page up/down"),
             Line::from("  g / G        Top / Bottom"),
             Line::from("  /            Filter (fuzzy fallback)"),

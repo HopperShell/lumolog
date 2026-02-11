@@ -56,6 +56,7 @@ pub struct App {
     available_levels: Vec<LogLevel>,
     context_menu: Option<ContextMenuState>,
     wrap: bool,
+    h_scroll: usize,
     cursor_position: usize,
     yank_flash: u8,
     similar_template: Option<String>,
@@ -92,6 +93,7 @@ impl App {
             available_levels,
             context_menu: None,
             wrap: false,
+            h_scroll: 0,
             cursor_position: 0,
             yank_flash: 0,
             similar_template: None,
@@ -234,10 +236,23 @@ impl App {
 
     pub fn toggle_wrap(&mut self) {
         self.wrap = !self.wrap;
+        self.h_scroll = 0;
     }
 
     pub fn is_wrap(&self) -> bool {
         self.wrap
+    }
+
+    pub fn scroll_right(&mut self, n: usize) {
+        self.h_scroll = self.h_scroll.saturating_add(n);
+    }
+
+    pub fn scroll_left(&mut self, n: usize) {
+        self.h_scroll = self.h_scroll.saturating_sub(n);
+    }
+
+    pub fn h_scroll(&self) -> usize {
+        self.h_scroll
     }
 
     // Cursor mode methods

@@ -145,6 +145,8 @@ fn main() -> anyhow::Result<()> {
                                 }
                             }
                             KeyCode::Char('s') => app.filter_by_similar(),
+                            KeyCode::Right | KeyCode::Char('l') => app.scroll_right(1),
+                            KeyCode::Left | KeyCode::Char('h') => app.scroll_left(1),
                             KeyCode::Esc => app.exit_cursor_mode(),
                             KeyCode::Char('q') => app.quit(),
                             KeyCode::Char('?') => app.toggle_help(),
@@ -175,6 +177,8 @@ fn main() -> anyhow::Result<()> {
                             }
                             KeyCode::Down | KeyCode::Char('j') => app.scroll_down(1),
                             KeyCode::Up | KeyCode::Char('k') => app.scroll_up(1),
+                            KeyCode::Right | KeyCode::Char('l') => app.scroll_right(1),
+                            KeyCode::Left | KeyCode::Char('h') => app.scroll_left(1),
                             KeyCode::Char(' ') if app.is_follow_mode() => app.toggle_follow_pause(),
                             KeyCode::PageDown | KeyCode::Char(' ') => app.page_down(),
                             KeyCode::PageUp => app.page_up(),
@@ -226,6 +230,8 @@ fn main() -> anyhow::Result<()> {
                     }
                     MouseEventKind::ScrollDown => app.scroll_down(3),
                     MouseEventKind::ScrollUp => app.scroll_up(3),
+                    MouseEventKind::ScrollLeft => app.scroll_left(3),
+                    MouseEventKind::ScrollRight => app.scroll_right(3),
                     _ => {}
                 },
                 _ => {}
