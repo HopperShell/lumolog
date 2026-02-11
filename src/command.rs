@@ -34,11 +34,63 @@ pub struct Command {
 pub fn commands() -> &'static [Command] {
     use Action::*;
     static COMMANDS: &[Command] = &[
+        // --- Actions (most useful at the top) ---
+        Command {
+            name: "Filter / search",
+            keybinding: Some("/"),
+            action: OpenFilter,
+        },
+        Command {
+            name: "Level filter up",
+            keybinding: Some("v"),
+            action: CycleLevelUp,
+        },
+        Command {
+            name: "Level filter down",
+            keybinding: Some("V"),
+            action: CycleLevelDown,
+        },
+        Command {
+            name: "Cursor mode",
+            keybinding: Some("Enter"),
+            action: EnterCursorMode,
+        },
+        Command {
+            name: "Yank line to clipboard",
+            keybinding: Some("y (cursor)"),
+            action: YankLine,
+        },
+        Command {
+            name: "Yank all filtered lines",
+            keybinding: Some("Y (cursor)"),
+            action: YankAllFiltered,
+        },
+        Command {
+            name: "Pretty-print JSON",
+            keybinding: Some("p"),
+            action: TogglePretty,
+        },
+        Command {
+            name: "Toggle line wrap",
+            keybinding: Some("w"),
+            action: ToggleWrap,
+        },
+        Command {
+            name: "Pause / resume follow",
+            keybinding: Some("Space"),
+            action: ToggleFollowPause,
+        },
+        Command {
+            name: "Command palette",
+            keybinding: Some("?"),
+            action: OpenCommandPalette,
+        },
         Command {
             name: "Quit",
             keybinding: Some("q / Esc"),
             action: Quit,
         },
+        // --- Navigation (less important, bottom) ---
         Command {
             name: "Scroll down",
             keybinding: Some("j / Down"),
@@ -78,56 +130,6 @@ pub fn commands() -> &'static [Command] {
             name: "Go to bottom",
             keybinding: Some("G"),
             action: ScrollToBottom,
-        },
-        Command {
-            name: "Filter / search",
-            keybinding: Some("/"),
-            action: OpenFilter,
-        },
-        Command {
-            name: "Level filter up",
-            keybinding: Some("v"),
-            action: CycleLevelUp,
-        },
-        Command {
-            name: "Level filter down",
-            keybinding: Some("V"),
-            action: CycleLevelDown,
-        },
-        Command {
-            name: "Pretty-print JSON",
-            keybinding: Some("p"),
-            action: TogglePretty,
-        },
-        Command {
-            name: "Toggle line wrap",
-            keybinding: Some("w"),
-            action: ToggleWrap,
-        },
-        Command {
-            name: "Cursor mode",
-            keybinding: Some("Enter"),
-            action: EnterCursorMode,
-        },
-        Command {
-            name: "Pause / resume follow",
-            keybinding: Some("Space"),
-            action: ToggleFollowPause,
-        },
-        Command {
-            name: "Command palette",
-            keybinding: Some("?"),
-            action: OpenCommandPalette,
-        },
-        Command {
-            name: "Yank line to clipboard",
-            keybinding: Some("y (cursor)"),
-            action: YankLine,
-        },
-        Command {
-            name: "Yank all filtered lines",
-            keybinding: Some("Y (cursor)"),
-            action: YankAllFiltered,
         },
     ];
     COMMANDS
