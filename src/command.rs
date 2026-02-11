@@ -18,6 +18,8 @@ pub enum Action {
     EnterCursorMode,
     ToggleFollowPause,
     OpenCommandPalette,
+    YankLine,
+    YankAllFiltered,
 }
 
 /// A command in the palette. `keybinding` is a display string for the help column.
@@ -116,6 +118,16 @@ pub fn commands() -> &'static [Command] {
             name: "Command palette",
             keybinding: Some("?"),
             action: OpenCommandPalette,
+        },
+        Command {
+            name: "Yank line to clipboard",
+            keybinding: Some("y (cursor)"),
+            action: YankLine,
+        },
+        Command {
+            name: "Yank all filtered lines",
+            keybinding: Some("Y (cursor)"),
+            action: YankAllFiltered,
         },
     ];
     COMMANDS

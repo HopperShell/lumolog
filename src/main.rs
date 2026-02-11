@@ -68,6 +68,21 @@ fn dispatch_action(action: command::Action, app: &mut App) {
         EnterCursorMode => app.enter_cursor_mode(),
         ToggleFollowPause => app.toggle_follow_pause(),
         OpenCommandPalette => app.open_palette(),
+        YankLine => {
+            if let Some(text) = app.cursor_line_raw() {
+                if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                    let _ = clipboard.set_text(text.to_string());
+                    app.set_yank_flash();
+                }
+            }
+        }
+        YankAllFiltered => {
+            let text = app.all_filtered_lines_raw();
+            if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                let _ = clipboard.set_text(text);
+                app.set_yank_flash();
+            }
+        }
     }
 }
 
@@ -169,12 +184,10 @@ fn main() -> anyhow::Result<()> {
                             KeyCode::Down | KeyCode::Char('j') => app.cursor_down(1),
                             KeyCode::Up | KeyCode::Char('k') => app.cursor_up(1),
                             KeyCode::Char('y') => {
-                                if let Some(text) = app.cursor_line_raw() {
-                                    if let Ok(mut clipboard) = arboard::Clipboard::new() {
-                                        let _ = clipboard.set_text(text.to_string());
-                                        app.set_yank_flash();
-                                    }
-                                }
+                                dispatch_action(command::Action::YankLine, &mut app)
+                            }
+                            KeyCode::Char('Y') => {
+                                dispatch_action(command::Action::YankAllFiltered, &mut app)
                             }
                             KeyCode::Char('s') => app.filter_by_similar(),
                             KeyCode::Right | KeyCode::Char('l') => app.scroll_right(1),

@@ -286,6 +286,14 @@ impl App {
             .map(|&idx| self.parsed_lines[idx].raw.as_str())
     }
 
+    pub fn all_filtered_lines_raw(&self) -> String {
+        self.filtered_indices
+            .iter()
+            .map(|&idx| self.parsed_lines[idx].raw.as_str())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
     pub fn set_yank_flash(&mut self) {
         self.yank_flash = 3;
     }
