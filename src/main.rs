@@ -4,6 +4,7 @@ mod filter;
 mod highlighter;
 mod parser;
 mod source;
+mod timeindex;
 mod ui;
 
 use app::{App, AppMode, MenuAction};
@@ -82,6 +83,49 @@ fn dispatch_action(action: command::Action, app: &mut App) {
                 let _ = clipboard.set_text(text);
                 app.set_yank_flash();
             }
+        }
+        EnterTimeMode => app.enter_time_mode(),
+        ClearTimeRange => {
+            app.clear_time_range();
+            if app.mode() == AppMode::TimeRange {
+                app.exit_time_mode();
+            }
+        }
+        ToggleSparkline => app.toggle_sparkline(),
+        TimeMarkStart => {
+            if app.mode() != AppMode::TimeRange {
+                app.enter_time_mode();
+            }
+            app.time_mark_start();
+        }
+        TimeMarkEndApply => {
+            if app.mode() == AppMode::TimeRange {
+                app.time_mark_end_and_apply();
+            }
+        }
+        TimePresetLast5m => {
+            if app.mode() != AppMode::TimeRange {
+                app.enter_time_mode();
+            }
+            app.time_preset(5);
+        }
+        TimePresetLast15m => {
+            if app.mode() != AppMode::TimeRange {
+                app.enter_time_mode();
+            }
+            app.time_preset(15);
+        }
+        TimePresetLast1h => {
+            if app.mode() != AppMode::TimeRange {
+                app.enter_time_mode();
+            }
+            app.time_preset(60);
+        }
+        TimePresetLast24h => {
+            if app.mode() != AppMode::TimeRange {
+                app.enter_time_mode();
+            }
+            app.time_preset(1440);
         }
     }
 }
@@ -167,6 +211,29 @@ fn main() -> anyhow::Result<()> {
                             KeyCode::Char(c) => app.palette_type(c),
                             _ => {}
                         }
+                    } else if app.mode() == AppMode::TimeRange {
+                        match key.code {
+                            KeyCode::Left | KeyCode::Char('h') => app.time_cursor_left(1),
+                            KeyCode::Right | KeyCode::Char('l') => app.time_cursor_right(1),
+                            KeyCode::Char('H') => app.time_cursor_left(5),
+                            KeyCode::Char('L') => app.time_cursor_right(5),
+                            KeyCode::Char('[') => app.time_mark_start(),
+                            KeyCode::Char(']') | KeyCode::Enter => app.time_mark_end_and_apply(),
+                            KeyCode::Char('1') => app.time_preset(5),
+                            KeyCode::Char('2') => app.time_preset(15),
+                            KeyCode::Char('3') => app.time_preset(60),
+                            KeyCode::Char('4') => app.time_preset(1440),
+                            KeyCode::Char('Y') => {
+                                dispatch_action(command::Action::YankAllFiltered, &mut app)
+                            }
+                            KeyCode::Char('c') => {
+                                app.clear_time_range();
+                                app.exit_time_mode();
+                            }
+                            KeyCode::Esc => app.exit_time_mode(),
+                            KeyCode::Char('q') => app.quit(),
+                            _ => {}
+                        }
                     } else if app.mode() == AppMode::ContextMenu {
                         match key.code {
                             KeyCode::Up | KeyCode::Char('k') => app.menu_up(),
@@ -216,6 +283,8 @@ fn main() -> anyhow::Result<()> {
                             KeyCode::Esc => {
                                 if app.is_similar_filter() {
                                     app.clear_similar();
+                                } else if app.time_range().is_some() {
+                                    app.clear_time_range();
                                 } else {
                                     app.quit();
                                 }
@@ -234,51 +303,112 @@ fn main() -> anyhow::Result<()> {
                             KeyCode::Char('w') => app.toggle_wrap(),
                             KeyCode::Char('v') => app.cycle_level_up(),
                             KeyCode::Char('V') => app.cycle_level_down(),
+                            KeyCode::Char('Y') => {
+                                dispatch_action(command::Action::YankAllFiltered, &mut app)
+                            }
+                            KeyCode::Char('t') => app.enter_time_mode(),
                             KeyCode::Char('?') => app.open_palette(),
                             KeyCode::Enter => app.enter_cursor_mode(),
                             _ => {}
                         }
                     }
                 }
-                Event::Mouse(mouse) => match mouse.kind {
-                    MouseEventKind::Down(MouseButton::Left) => {
-                        if app.mode() == AppMode::ContextMenu {
-                            if let Some(index) = ui::menu_item_at_position(
-                                &app,
-                                mouse.column,
-                                mouse.row,
-                                terminal_area,
-                            ) {
-                                // Clicked a menu item — execute it
-                                if let Some((action, value)) = app.execute_menu_item(index) {
-                                    execute_action(action, value, &mut app);
-                                }
-                            } else {
-                                // Clicked outside menu — close and check for new token
-                                app.close_context_menu();
-                                if let Some((kind, value)) = ui::token_at_position(
-                                    &app,
-                                    mouse.column,
-                                    mouse.row,
-                                    terminal_area,
-                                ) {
-                                    app.open_context_menu(value, kind, (mouse.column, mouse.row));
+                Event::Mouse(mouse) => {
+                    // Check sparkline clicks first
+                    if let Some(bucket) = ui::sparkline_bucket_at_position(
+                        &app,
+                        mouse.column,
+                        mouse.row,
+                        terminal_area,
+                    ) {
+                        match mouse.kind {
+                            MouseEventKind::Down(MouseButton::Left) => {
+                                app.time_mouse_down(bucket);
+                            }
+                            MouseEventKind::Drag(MouseButton::Left) => {
+                                app.time_mouse_drag(bucket);
+                            }
+                            MouseEventKind::Up(MouseButton::Left) => {
+                                app.time_mouse_up(bucket);
+                            }
+                            _ => {}
+                        }
+                    } else {
+                        match mouse.kind {
+                            MouseEventKind::Down(MouseButton::Left) => {
+                                if app.mode() == AppMode::ContextMenu {
+                                    if let Some(index) = ui::menu_item_at_position(
+                                        &app,
+                                        mouse.column,
+                                        mouse.row,
+                                        terminal_area,
+                                    ) {
+                                        if let Some((action, value)) = app.execute_menu_item(index)
+                                        {
+                                            execute_action(action, value, &mut app);
+                                        }
+                                    } else {
+                                        app.close_context_menu();
+                                        if let Some((kind, value)) = ui::token_at_position(
+                                            &app,
+                                            mouse.column,
+                                            mouse.row,
+                                            terminal_area,
+                                        ) {
+                                            app.open_context_menu(
+                                                value,
+                                                kind,
+                                                (mouse.column, mouse.row),
+                                            );
+                                        }
+                                    }
+                                } else if app.mode() != AppMode::Cursor {
+                                    if let Some((kind, value)) = ui::token_at_position(
+                                        &app,
+                                        mouse.column,
+                                        mouse.row,
+                                        terminal_area,
+                                    ) {
+                                        app.open_context_menu(
+                                            value,
+                                            kind,
+                                            (mouse.column, mouse.row),
+                                        );
+                                    }
                                 }
                             }
-                        } else if app.mode() != AppMode::Cursor {
-                            if let Some((kind, value)) =
-                                ui::token_at_position(&app, mouse.column, mouse.row, terminal_area)
-                            {
-                                app.open_context_menu(value, kind, (mouse.column, mouse.row));
+                            MouseEventKind::Drag(MouseButton::Left) => {
+                                // If we're in time mode with active drag, extend to wherever the mouse is
+                                if app.mode() == AppMode::TimeRange {
+                                    // Try to map to nearest bucket even outside sparkline area
+                                    if let Some(sparkline) = app.sparkline_data() {
+                                        let col = mouse.column as usize;
+                                        let bucket = col
+                                            .saturating_sub(1)
+                                            .min(sparkline.num_buckets.saturating_sub(1));
+                                        app.time_mouse_drag(bucket);
+                                    }
+                                }
                             }
+                            MouseEventKind::Up(MouseButton::Left) => {
+                                if app.mode() == AppMode::TimeRange {
+                                    if let Some(sparkline) = app.sparkline_data() {
+                                        let col = mouse.column as usize;
+                                        let bucket = col
+                                            .saturating_sub(1)
+                                            .min(sparkline.num_buckets.saturating_sub(1));
+                                        app.time_mouse_up(bucket);
+                                    }
+                                }
+                            }
+                            MouseEventKind::ScrollDown => app.scroll_down(3),
+                            MouseEventKind::ScrollUp => app.scroll_up(3),
+                            MouseEventKind::ScrollLeft => app.scroll_left(3),
+                            MouseEventKind::ScrollRight => app.scroll_right(3),
+                            _ => {}
                         }
                     }
-                    MouseEventKind::ScrollDown => app.scroll_down(3),
-                    MouseEventKind::ScrollUp => app.scroll_up(3),
-                    MouseEventKind::ScrollLeft => app.scroll_left(3),
-                    MouseEventKind::ScrollRight => app.scroll_right(3),
-                    _ => {}
-                },
+                }
                 _ => {}
             }
         }

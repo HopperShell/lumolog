@@ -2,6 +2,10 @@ use crate::command;
 use crate::filter::filter_lines;
 use crate::highlighter::TokenKind;
 use crate::parser::{LogFormat, LogLevel, ParsedLine, detect_format, parse_line};
+use crate::timeindex::{
+    SparklineData, TimeIndex, TimeModeState, TimeRange, bucket_range_to_time_range,
+    build_time_index, compute_sparkline, filter_by_time_range,
+};
 use std::collections::BTreeSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -11,6 +15,7 @@ pub enum AppMode {
     ContextMenu,
     Cursor,
     CommandPalette,
+    TimeRange,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,6 +69,12 @@ pub struct App {
     palette_input: String,
     palette_selected: usize,
     palette_filtered: Vec<usize>,
+    time_index: Option<TimeIndex>,
+    sparkline_data: Option<SparklineData>,
+    time_range: Option<TimeRange>,
+    time_mode: Option<TimeModeState>,
+    sparkline_visible: bool,
+    sparkline_width: usize,
 }
 
 impl App {
@@ -77,6 +88,16 @@ impl App {
             let set: BTreeSet<LogLevel> = parsed_lines.iter().filter_map(|l| l.level).collect();
             set.into_iter().collect()
         };
+
+        let time_index = {
+            let idx = build_time_index(&parsed_lines);
+            if idx.has_timestamps() {
+                Some(idx)
+            } else {
+                None
+            }
+        };
+        let sparkline_visible = time_index.is_some();
 
         Self {
             parsed_lines,
@@ -103,6 +124,12 @@ impl App {
             palette_input: String::new(),
             palette_selected: 0,
             palette_filtered: (0..command::commands().len()).collect(),
+            time_index,
+            sparkline_data: None,
+            time_range: None,
+            time_mode: None,
+            sparkline_visible,
+            sparkline_width: 0,
         }
     }
 
@@ -394,6 +421,10 @@ impl App {
     fn recompute_filter(&mut self) {
         let result = filter_lines(&self.parsed_lines, &self.filter_pattern, self.min_level);
         let mut indices = result.indices;
+        // Time range filter
+        if let (Some(index), Some(range)) = (&self.time_index, &self.time_range) {
+            indices = filter_by_time_range(index, range, &indices);
+        }
         if let Some(ref tmpl) = self.similar_template {
             indices.retain(|&i| self.parsed_lines[i].template == *tmpl);
         }
@@ -419,14 +450,32 @@ impl App {
     pub fn append_lines(&mut self, new_raw: Vec<String>) {
         let was_at_bottom = self.is_at_bottom();
 
-        for line in &new_raw {
-            let parsed = parse_line(line, self.format);
-            self.parsed_lines.push(parsed);
+        let new_parsed: Vec<ParsedLine> = new_raw
+            .iter()
+            .map(|line| parse_line(line, self.format))
+            .collect();
+
+        // Update time index incrementally
+        if let Some(ref mut idx) = self.time_index {
+            idx.append(&new_parsed);
+            // Recompute sparkline with current width
+            if self.sparkline_width > 0 {
+                self.sparkline_data = compute_sparkline(idx, self.sparkline_width);
+            }
         }
+
+        self.parsed_lines.extend(new_parsed);
 
         // Recompute filtered indices from scratch (filter or level filter may be active)
         let result = filter_lines(&self.parsed_lines, &self.filter_pattern, self.min_level);
-        self.filtered_indices = result.indices;
+        let mut indices = result.indices;
+        if let (Some(index), Some(range)) = (&self.time_index, &self.time_range) {
+            indices = filter_by_time_range(index, range, &indices);
+        }
+        if let Some(ref tmpl) = self.similar_template {
+            indices.retain(|&i| self.parsed_lines[i].template == *tmpl);
+        }
+        self.filtered_indices = indices;
         self.is_fuzzy = result.is_fuzzy;
 
         if was_at_bottom {
@@ -671,5 +720,159 @@ impl App {
             self.palette_filtered = scored.into_iter().map(|(i, _)| i).collect();
         }
         self.palette_selected = 0;
+    }
+
+    // Time range / sparkline methods
+
+    pub fn is_sparkline_visible(&self) -> bool {
+        self.sparkline_visible && self.time_index.is_some()
+    }
+
+    pub fn toggle_sparkline(&mut self) {
+        self.sparkline_visible = !self.sparkline_visible;
+    }
+
+    pub fn sparkline_data(&self) -> Option<&SparklineData> {
+        self.sparkline_data.as_ref()
+    }
+
+    pub fn time_range(&self) -> Option<&TimeRange> {
+        self.time_range.as_ref()
+    }
+
+    pub fn time_mode_state(&self) -> Option<&TimeModeState> {
+        self.time_mode.as_ref()
+    }
+
+    pub fn time_index(&self) -> Option<&TimeIndex> {
+        self.time_index.as_ref()
+    }
+
+    pub fn set_sparkline_width(&mut self, width: usize) {
+        if width != self.sparkline_width && width > 0 {
+            self.sparkline_width = width;
+            if let Some(index) = &self.time_index {
+                self.sparkline_data = compute_sparkline(index, width);
+            }
+        }
+    }
+
+    pub fn enter_time_mode(&mut self) {
+        if self.time_index.is_none() || !self.sparkline_visible {
+            return;
+        }
+        let num_buckets = self.sparkline_data.as_ref().map_or(0, |s| s.num_buckets);
+        if num_buckets == 0 {
+            return;
+        }
+        self.time_mode = Some(TimeModeState {
+            cursor_bucket: num_buckets / 2,
+            range_start: None,
+            dragging: false,
+            drag_start: None,
+        });
+        self.mode = AppMode::TimeRange;
+    }
+
+    pub fn exit_time_mode(&mut self) {
+        self.time_mode = None;
+        self.mode = AppMode::Normal;
+    }
+
+    pub fn time_cursor_left(&mut self, n: usize) {
+        if let Some(state) = &mut self.time_mode {
+            state.cursor_bucket = state.cursor_bucket.saturating_sub(n);
+        }
+    }
+
+    pub fn time_cursor_right(&mut self, n: usize) {
+        if let (Some(state), Some(sparkline)) = (&mut self.time_mode, &self.sparkline_data) {
+            let max = sparkline.num_buckets.saturating_sub(1);
+            state.cursor_bucket = (state.cursor_bucket + n).min(max);
+        }
+    }
+
+    pub fn time_mark_start(&mut self) {
+        if let Some(state) = &mut self.time_mode {
+            state.range_start = Some(state.cursor_bucket);
+        }
+    }
+
+    pub fn time_mark_end_and_apply(&mut self) {
+        let (start_bucket, end_bucket) = {
+            let state = match &self.time_mode {
+                Some(s) => s,
+                None => return,
+            };
+            let start = match state.range_start {
+                Some(s) => s,
+                None => state.cursor_bucket,
+            };
+            let end = state.cursor_bucket;
+            if start <= end {
+                (start, end)
+            } else {
+                (end, start)
+            }
+        };
+
+        if let Some(sparkline) = &self.sparkline_data {
+            if let Some(range) = bucket_range_to_time_range(sparkline, start_bucket, end_bucket) {
+                self.time_range = Some(range);
+                self.recompute_filter();
+            }
+        }
+        self.exit_time_mode();
+    }
+
+    pub fn time_preset(&mut self, minutes: i64) {
+        if let Some(index) = &self.time_index {
+            if let Some(max_ts) = index.max_ts {
+                let start = max_ts - chrono::Duration::minutes(minutes);
+                self.time_range = Some(TimeRange { start, end: max_ts });
+                self.recompute_filter();
+            }
+        }
+        self.exit_time_mode();
+    }
+
+    pub fn clear_time_range(&mut self) {
+        self.time_range = None;
+        self.recompute_filter();
+    }
+
+    pub fn time_mouse_down(&mut self, bucket: usize) {
+        if self.time_index.is_none() || !self.sparkline_visible {
+            return;
+        }
+        // Enter time mode if not already in it
+        if self.mode != AppMode::TimeRange {
+            self.enter_time_mode();
+        }
+        if let Some(state) = &mut self.time_mode {
+            state.cursor_bucket = bucket;
+            state.dragging = true;
+            state.drag_start = Some(bucket);
+            state.range_start = Some(bucket);
+        }
+    }
+
+    pub fn time_mouse_drag(&mut self, bucket: usize) {
+        if let Some(state) = &mut self.time_mode {
+            if state.dragging {
+                state.cursor_bucket = bucket;
+            }
+        }
+    }
+
+    pub fn time_mouse_up(&mut self, _bucket: usize) {
+        let should_apply = self
+            .time_mode
+            .as_ref()
+            .is_some_and(|s| s.dragging && s.drag_start.is_some());
+        if should_apply {
+            // Mark end and apply
+            self.time_mark_end_and_apply();
+        }
     }
 }

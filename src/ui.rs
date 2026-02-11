@@ -11,22 +11,46 @@ use crate::highlighter::{
 };
 use crate::parser::LogFormat;
 use crate::parser::LogLevel;
+use crate::timeindex;
+
+const SPARKLINE_CHARS: &[char] = &[' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 
 pub fn render(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
     app.tick_yank_flash();
 
     let filter_height = if app.is_filter_mode() { 1 } else { 0 };
+    let sparkline_height: u16 = if !app.is_sparkline_visible() {
+        0
+    } else if app.mode() == AppMode::TimeRange {
+        2
+    } else {
+        1
+    };
 
-    let [main_area, filter_area, status_area] = Layout::vertical([
+    let [sparkline_area, main_area, filter_area, status_area] = Layout::vertical([
+        Constraint::Length(sparkline_height),
         Constraint::Fill(1),
         Constraint::Length(filter_height),
         Constraint::Length(1),
     ])
     .areas(area);
 
+    // Update sparkline width so App can recompute bucket data
+    if sparkline_height > 0 {
+        // Reserve some right-side space for time labels
+        let label_reserve = 20;
+        let usable = sparkline_area.width.saturating_sub(1 + label_reserve) as usize;
+        app.set_sparkline_width(usable);
+    }
+
     let content_height = main_area.height.saturating_sub(2) as usize;
     app.set_viewport_height(content_height);
+
+    // --- Sparkline ---
+    if sparkline_height > 0 {
+        render_sparkline(frame, app, sparkline_area);
+    }
 
     // Compute line number width from total line count
     let line_num_width = format!("{}", app.total_lines_unfiltered()).len().max(3);
@@ -174,6 +198,14 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 
     if app.is_similar_filter() {
         status_parts.push(format!("Similar ({} matches)", total));
+    }
+
+    // Time range indicator in status bar
+    if let Some(range) = app.time_range() {
+        let multi_day = timeindex::is_multi_day(range.start, range.end);
+        let start_str = timeindex::format_sparkline_time(range.start, multi_day);
+        let end_str = timeindex::format_sparkline_time(range.end, multi_day);
+        status_parts.push(format!("Time: {}—{} ({})", start_str, end_str, total));
     }
 
     if app.h_scroll() > 0 {
@@ -359,6 +391,228 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     }
 }
 
+// --- Sparkline rendering ---
+
+fn render_sparkline(frame: &mut Frame, app: &App, area: Rect) {
+    let sparkline = match app.sparkline_data() {
+        Some(s) => s,
+        None => return,
+    };
+
+    let index = match app.time_index() {
+        Some(i) => i,
+        None => return,
+    };
+
+    let is_time_mode = app.mode() == AppMode::TimeRange;
+    let time_state = app.time_mode_state();
+    let active_range = app.time_range();
+
+    let multi_day = match (index.min_ts, index.max_ts) {
+        (Some(min), Some(max)) => timeindex::is_multi_day(min, max),
+        _ => false,
+    };
+
+    // Determine selected bucket range for highlighting
+    let selected_range: Option<(usize, usize)> = if is_time_mode {
+        time_state.and_then(|s| {
+            s.range_start.map(|start| {
+                let end = s.cursor_bucket;
+                if start <= end {
+                    (start, end)
+                } else {
+                    (end, start)
+                }
+            })
+        })
+    } else if let Some(range) = active_range {
+        // Find bucket range that corresponds to the active time range
+        bucket_indices_for_time_range(sparkline, range)
+    } else {
+        None
+    };
+
+    let max_val = sparkline.buckets.iter().copied().max().unwrap_or(1).max(1);
+
+    // Build sparkline line 1: bar characters
+    let mut bar_spans: Vec<Span> = Vec::with_capacity(sparkline.num_buckets + 5);
+    bar_spans.push(Span::styled(" ", Style::default()));
+
+    for (i, &count) in sparkline.buckets.iter().enumerate() {
+        let bar_idx = if count == 0 {
+            0
+        } else {
+            ((count as f64 / max_val as f64) * 8.0).ceil() as usize
+        };
+        let bar_char = SPARKLINE_CHARS[bar_idx.min(8)];
+
+        let is_selected = selected_range.is_some_and(|(s, e)| i >= s && i <= e);
+        let is_cursor = is_time_mode && time_state.is_some_and(|s| s.cursor_bucket == i);
+
+        let style = if is_cursor {
+            Style::default().fg(Color::Yellow).bg(Color::Yellow)
+        } else if is_selected {
+            Style::default().fg(Color::Cyan)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+
+        bar_spans.push(Span::styled(bar_char.to_string(), style));
+    }
+
+    // Right-side label: time range
+    let right_label = match (index.min_ts, index.max_ts) {
+        (Some(min), Some(max)) => {
+            let min_str = timeindex::format_sparkline_time(min, multi_day);
+            let max_str = timeindex::format_sparkline_time(max, multi_day);
+            format!("  {} — {}", min_str, max_str)
+        }
+        _ => String::new(),
+    };
+    let used_width = 1 + sparkline.num_buckets + right_label.len();
+    let padding = (area.width as usize).saturating_sub(used_width);
+    bar_spans.push(Span::styled(" ".repeat(padding), Style::default()));
+    bar_spans.push(Span::styled(
+        right_label,
+        Style::default().fg(Color::DarkGray),
+    ));
+
+    let line1 = Line::from(bar_spans);
+
+    if is_time_mode && area.height >= 2 {
+        // Line 2: time axis labels and key hints
+        let mut axis_spans: Vec<Span> = Vec::new();
+        axis_spans.push(Span::styled(" ", Style::default()));
+
+        // Build axis string: mostly spaces, with time labels at key positions
+        let mut axis_chars = vec![' '; sparkline.num_buckets];
+
+        // Place cursor time label
+        if let Some(state) = time_state {
+            let cursor_ts =
+                &sparkline.bucket_starts[state.cursor_bucket.min(sparkline.num_buckets - 1)];
+            let cursor_label = timeindex::format_sparkline_time(*cursor_ts, multi_day);
+            let start_pos = state.cursor_bucket.saturating_sub(cursor_label.len() / 2);
+            for (j, ch) in cursor_label.chars().enumerate() {
+                let pos = start_pos + j;
+                if pos < axis_chars.len() {
+                    axis_chars[pos] = ch;
+                }
+            }
+        }
+
+        // If there's an active selection preview, show range times
+        if let Some((sel_start, sel_end)) = selected_range {
+            if let Some(state) = time_state {
+                if state.range_start.is_some() {
+                    let start_ts = sparkline.bucket_starts[sel_start];
+                    let end_ts = sparkline.bucket_starts[sel_end.min(sparkline.num_buckets - 1)];
+                    let range_label = format!(
+                        "{} — {}",
+                        timeindex::format_sparkline_time(start_ts, multi_day),
+                        timeindex::format_sparkline_time(end_ts, multi_day)
+                    );
+                    let mid = (sel_start + sel_end) / 2;
+                    let label_start = mid.saturating_sub(range_label.len() / 2);
+                    for (j, ch) in range_label.chars().enumerate() {
+                        let pos = label_start + j;
+                        if pos < axis_chars.len() {
+                            axis_chars[pos] = ch;
+                        }
+                    }
+                }
+            }
+        }
+
+        let axis_str: String = axis_chars.into_iter().collect();
+        axis_spans.push(Span::styled(axis_str, Style::default().fg(Color::DarkGray)));
+
+        // Key hints on the right
+        let hints = "  [/] select  Esc cancel";
+        let hints_padding =
+            (area.width as usize).saturating_sub(1 + sparkline.num_buckets + hints.len());
+        axis_spans.push(Span::styled(" ".repeat(hints_padding), Style::default()));
+        axis_spans.push(Span::styled(hints, Style::default().fg(Color::DarkGray)));
+
+        let line2 = Line::from(axis_spans);
+        let sparkline_widget = Paragraph::new(vec![line1, line2]);
+        frame.render_widget(sparkline_widget, area);
+    } else {
+        let sparkline_widget = Paragraph::new(line1);
+        frame.render_widget(sparkline_widget, area);
+    }
+}
+
+/// Map a TimeRange back to bucket indices in the sparkline.
+fn bucket_indices_for_time_range(
+    sparkline: &timeindex::SparklineData,
+    range: &timeindex::TimeRange,
+) -> Option<(usize, usize)> {
+    if sparkline.num_buckets == 0 {
+        return None;
+    }
+    let first_start = sparkline.bucket_starts[0];
+    let bucket_dur = chrono::Duration::seconds(sparkline.bucket_duration_secs);
+
+    let start_offset = (range.start - first_start).num_seconds().max(0);
+    let end_offset = (range.end - first_start).num_seconds().max(0);
+
+    let start_bucket = (start_offset / sparkline.bucket_duration_secs) as usize;
+    let end_bucket = if bucket_dur.num_seconds() > 0 {
+        ((end_offset + sparkline.bucket_duration_secs - 1) / sparkline.bucket_duration_secs)
+            as usize
+    } else {
+        0
+    };
+
+    let start_bucket = start_bucket.min(sparkline.num_buckets - 1);
+    let end_bucket = end_bucket.min(sparkline.num_buckets - 1);
+
+    Some((start_bucket, end_bucket))
+}
+
+/// Given a click coordinate in the sparkline area, determine which bucket was clicked.
+pub fn sparkline_bucket_at_position(app: &App, column: u16, row: u16, area: Rect) -> Option<usize> {
+    if !app.is_sparkline_visible() {
+        return None;
+    }
+
+    let sparkline_height: u16 = if app.mode() == AppMode::TimeRange {
+        2
+    } else {
+        1
+    };
+
+    let [sparkline_area, _, _, _] = Layout::vertical([
+        Constraint::Length(sparkline_height),
+        Constraint::Fill(1),
+        Constraint::Length(if app.is_filter_mode() { 1 } else { 0 }),
+        Constraint::Length(1),
+    ])
+    .areas(area);
+
+    if row < sparkline_area.y || row >= sparkline_area.y + sparkline_area.height {
+        return None;
+    }
+
+    let sparkline = app.sparkline_data()?;
+
+    // Bars start at column 1 (after leading space)
+    let bar_start = sparkline_area.x + 1;
+    let bar_end = bar_start + sparkline.num_buckets as u16;
+
+    if column >= bar_start && column < bar_end {
+        let bucket = (column - bar_start) as usize;
+        if bucket < sparkline.num_buckets {
+            return Some(bucket);
+        }
+    }
+
+    None
+}
+
+// --- Existing helper functions ---
+
 /// Given a click coordinate, determine which token (if any) was clicked.
 /// Returns the `TokenKind` and the raw matched text.
 pub fn token_at_position(
@@ -367,9 +621,18 @@ pub fn token_at_position(
     row: u16,
     area: Rect,
 ) -> Option<(TokenKind, String)> {
-    // Recompute the main_area layout the same way render() does
+    // Recompute the layout the same way render() does
     let filter_height = if app.mode() == AppMode::Filter { 1 } else { 0 };
-    let [main_area, _, _] = Layout::vertical([
+    let sparkline_height: u16 = if !app.is_sparkline_visible() {
+        0
+    } else if app.mode() == AppMode::TimeRange {
+        2
+    } else {
+        1
+    };
+
+    let [_, main_area, _, _] = Layout::vertical([
+        Constraint::Length(sparkline_height),
         Constraint::Fill(1),
         Constraint::Length(filter_height),
         Constraint::Length(1),
