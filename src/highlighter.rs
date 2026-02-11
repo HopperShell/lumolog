@@ -387,7 +387,11 @@ pub fn highlight_line(parsed: &ParsedLine) -> Line<'_> {
     match parsed.format {
         LogFormat::Json => highlight_json_line(parsed),
         LogFormat::Syslog => highlight_syslog_line(parsed),
-        LogFormat::Logfmt => highlight_json_line(parsed), // reuse JSON rendering
+        LogFormat::Logfmt
+        | LogFormat::Klog
+        | LogFormat::Log4j
+        | LogFormat::PythonLog
+        | LogFormat::AccessLog => highlight_json_line(parsed), // structured formats reuse compact view
         LogFormat::Plain => highlight_plain_line(parsed),
     }
 }

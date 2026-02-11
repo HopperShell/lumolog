@@ -125,12 +125,16 @@ impl App {
     }
 
     pub fn page_down(&mut self) {
-        let step = self.viewport_entries_from(self.scroll_offset).saturating_sub(1);
+        let step = self
+            .viewport_entries_from(self.scroll_offset)
+            .saturating_sub(1);
         self.scroll_down(step);
     }
 
     pub fn page_up(&mut self) {
-        let step = self.viewport_entries_from(self.scroll_offset).saturating_sub(1);
+        let step = self
+            .viewport_entries_from(self.scroll_offset)
+            .saturating_sub(1);
         self.scroll_up(step);
     }
 

@@ -1,0 +1,10 @@
+2024-01-15 08:30:00.123 [main] INFO  com.example.Application - Application starting up
+2024-01-15 08:30:01.234 [main] INFO  com.example.config.ConfigLoader - Loading configuration from /etc/app/config.yaml
+2024-01-15 08:30:02.345 [main] DEBUG com.example.db.ConnectionPool - Initializing connection pool: maxSize=20
+2024-01-15 08:30:03.456 [http-nio-8080-exec-1] INFO  com.example.web.RequestFilter - Incoming request: GET /api/users
+2024-01-15 08:30:04.567 [http-nio-8080-exec-2] WARN  com.example.auth.TokenValidator - Token expires in 5 minutes for user admin
+2024-01-15 08:30:05.678 [http-nio-8080-exec-1] ERROR com.example.service.UserService - Failed to fetch user 42: Connection refused
+2024-01-15 08:30:06.789 [scheduler-1] DEBUG com.example.jobs.CleanupJob - Running scheduled cleanup task
+2024-01-15 08:30:07.890 [http-nio-8080-exec-3] INFO  com.example.web.RequestFilter - Incoming request: POST /api/login
+2024-01-15 08:30:08.901 [http-nio-8080-exec-3] ERROR com.example.auth.AuthService - Authentication failed for user unknown@example.com
+2024-01-15 08:30:09.012 [main] FATAL com.example.Application - Unrecoverable error: out of memory

@@ -6,6 +6,10 @@ pub enum LogFormat {
     Json,
     Syslog,
     Logfmt,
+    Klog,
+    Log4j,
+    PythonLog,
+    AccessLog,
     Plain,
 }
 
@@ -52,12 +56,33 @@ static PLAIN_TIMESTAMP_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}[^\s]*)").unwrap());
 
 /// Matches individual key=value tokens for logfmt line detection.
-static LOGFMT_LINE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?:^|\s)\w[\w.]*=\S+").unwrap()
-});
+static LOGFMT_LINE_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?:^|\s)\w[\w.]*=\S+").unwrap());
 
 static LEVEL_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\b(TRACE|DEBUG|INFO|NOTICE|WARN(?:ING)?|ERROR|FATAL|CRITICAL|SEVERE|EMERGENCY|EMERG|ALERT|PANIC)\b").unwrap()
+});
+
+/// Klog format: `I0115 08:30:00.000000 12345 file.go:42] actual message`
+static KLOG_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^([IWEF])(\d{4}) (\d{2}:\d{2}:\d{2}\.\d+)\s+(\d+) ([^\]]+)\] (.*)$").unwrap()
+});
+
+/// Log4j format: `2024-01-15 08:30:00.123 [thread-name] LEVEL com.example.Class - message`
+/// Also matches comma decimals (e.g. `08:30:00,123`).
+static LOG4J_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}[.,]\d+)\s+\[([^\]]+)\]\s+(\w+)\s+(\S+)\s+-\s+(.*)$").unwrap()
+});
+
+/// Python logging format: `2024-01-15 08:30:00,123 - module_name - LEVEL - message`
+static PYTHON_LOG_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+) - (\S+) - (\w+) - (.*)$").unwrap()
+});
+
+/// Apache/Nginx Combined Log Format:
+/// `IP - user [timestamp] "METHOD /path HTTP/ver" status bytes "referer" "user-agent"`
+static ACCESS_LOG_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"^(\S+) \S+ (\S+) \[([^\]]+)\] "(\S+) (\S+)[^"]*" (\d{3}) (\d+|-)(?:\s+"([^"]*)" "([^"]*)")?$"#).unwrap()
 });
 
 pub fn detect_format(lines: &[String]) -> LogFormat {
@@ -93,6 +118,32 @@ pub fn detect_format(lines: &[String]) -> LogFormat {
         return LogFormat::Logfmt;
     }
 
+    let klog_count = sample.iter().filter(|line| KLOG_RE.is_match(line)).count();
+    if klog_count > sample.len() / 2 {
+        return LogFormat::Klog;
+    }
+
+    let log4j_count = sample.iter().filter(|line| LOG4J_RE.is_match(line)).count();
+    if log4j_count > sample.len() / 2 {
+        return LogFormat::Log4j;
+    }
+
+    let python_count = sample
+        .iter()
+        .filter(|line| PYTHON_LOG_RE.is_match(line))
+        .count();
+    if python_count > sample.len() / 2 {
+        return LogFormat::PythonLog;
+    }
+
+    let access_count = sample
+        .iter()
+        .filter(|line| ACCESS_LOG_RE.is_match(line))
+        .count();
+    if access_count > sample.len() / 2 {
+        return LogFormat::AccessLog;
+    }
+
     LogFormat::Plain
 }
 
@@ -101,6 +152,10 @@ pub fn parse_line(raw: &str, format: LogFormat) -> ParsedLine {
         LogFormat::Json => parse_json_line(raw),
         LogFormat::Syslog => parse_syslog_line(raw),
         LogFormat::Logfmt => parse_logfmt_line(raw),
+        LogFormat::Klog => parse_klog_line(raw),
+        LogFormat::Log4j => parse_log4j_line(raw),
+        LogFormat::PythonLog => parse_python_log_line(raw),
+        LogFormat::AccessLog => parse_access_log_line(raw),
         LogFormat::Plain => parse_plain_line(raw),
     };
     parsed.template = compute_template(raw);
@@ -119,13 +174,13 @@ const KNOWN_JSON_KEYS: &[&str] = &[
     "message",
     "msg",
     "log",
+    "stream",
 ];
 
 /// Matches a single logfmt key=value pair.
 /// Captures: (1) key, (2) quoted value without quotes, or (3) unquoted value.
-static LOGFMT_PAIR_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(\w[\w.]*)=(?:"([^"]*)"|([\S]*))"#).unwrap()
-});
+static LOGFMT_PAIR_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(\w[\w.]*)=(?:"([^"]*)"|([\S]*))"#).unwrap());
 
 /// Keys that map to the dedicated `level` field.
 const LOGFMT_LEVEL_KEYS: &[&str] = &["level", "severity", "log.level"];
@@ -141,13 +196,19 @@ const LOGFMT_MSG_KEYS: &[&str] = &["msg", "message"];
 static TEMPLATE_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(concat!(
         "(?i)",
-        r#"https?://[^\s,\]>)"']+"#, "|",                                                         // URLs
-        r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "|",                    // UUIDs
-        r"\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?", "|", // Dates
-        r"0x[0-9a-f]{4,16}", "|",                                                                 // Hex
-        r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?::\d{1,5})?", "|",                                 // IPv4
-        r"(?:\./|~/|/)[\w.\-]+(?:/[\w.\-]+)+", "|",                                               // Paths
-        r"\d+(?:\.\d+)?(?:ns|µs|us|ms|s|m|h|d|KB|MB|GB|TB|%|B)?",                                 // Numbers
+        r#"https?://[^\s,\]>)"']+"#,
+        "|", // URLs
+        r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+        "|", // UUIDs
+        r"\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?",
+        "|", // Dates
+        r"0x[0-9a-f]{4,16}",
+        "|", // Hex
+        r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?::\d{1,5})?",
+        "|", // IPv4
+        r"(?:\./|~/|/)[\w.\-]+(?:/[\w.\-]+)+",
+        "|",                                                      // Paths
+        r"\d+(?:\.\d+)?(?:ns|µs|us|ms|s|m|h|d|KB|MB|GB|TB|%|B)?", // Numbers
     ))
     .unwrap()
 });
@@ -181,6 +242,16 @@ fn parse_json_line(raw: &str) -> ParsedLine {
                     v.as_str()
                         .and_then(parse_level_str)
                         .or_else(|| v.as_u64().and_then(parse_numeric_level))
+                })
+                .or_else(|| {
+                    // Fallback: scan the message text for a level keyword (e.g. Docker logs
+                    // embed the level inside the "log" value, not as a separate key).
+                    let msg = value
+                        .get("message")
+                        .or_else(|| value.get("msg"))
+                        .or_else(|| value.get("log"))
+                        .and_then(|v| v.as_str())?;
+                    LEVEL_RE.find(msg).and_then(|m| parse_level_str(m.as_str()))
                 });
 
             let timestamp = value
@@ -285,7 +356,11 @@ fn parse_logfmt_line(raw: &str) -> ParsedLine {
 
     for caps in LOGFMT_PAIR_RE.captures_iter(raw) {
         let key = &caps[1];
-        let value = caps.get(2).or_else(|| caps.get(3)).map(|m| m.as_str()).unwrap_or("");
+        let value = caps
+            .get(2)
+            .or_else(|| caps.get(3))
+            .map(|m| m.as_str())
+            .unwrap_or("");
 
         if LOGFMT_LEVEL_KEYS.contains(&key) && level.is_none() {
             level = parse_level_str(value);
@@ -307,6 +382,173 @@ fn parse_logfmt_line(raw: &str) -> ParsedLine {
         pretty_json: None,
         extra_fields,
         template: String::new(),
+    }
+}
+
+fn parse_klog_line(raw: &str) -> ParsedLine {
+    if let Some(caps) = KLOG_RE.captures(raw) {
+        let level = match &caps[1] {
+            "I" => Some(LogLevel::Info),
+            "W" => Some(LogLevel::Warn),
+            "E" => Some(LogLevel::Error),
+            "F" => Some(LogLevel::Fatal),
+            _ => None,
+        };
+        // Timestamp: MMDD HH:MM:SS.micros
+        let timestamp = Some(format!("{} {}", &caps[2], &caps[3]));
+        let message = caps[6].to_string();
+        let extra_fields = vec![
+            ("pid".to_string(), caps[4].to_string()),
+            ("source".to_string(), caps[5].to_string()),
+        ];
+
+        ParsedLine {
+            raw: raw.to_string(),
+            level,
+            timestamp,
+            message,
+            format: LogFormat::Klog,
+            pretty_json: None,
+            extra_fields,
+            template: String::new(),
+        }
+    } else {
+        ParsedLine {
+            raw: raw.to_string(),
+            level: None,
+            timestamp: None,
+            message: raw.to_string(),
+            format: LogFormat::Klog,
+            pretty_json: None,
+            extra_fields: Vec::new(),
+            template: String::new(),
+        }
+    }
+}
+
+fn parse_log4j_line(raw: &str) -> ParsedLine {
+    if let Some(caps) = LOG4J_RE.captures(raw) {
+        let timestamp = Some(caps[1].to_string());
+        let thread = caps[2].to_string();
+        let level = parse_level_str(&caps[3]);
+        let class = caps[4].to_string();
+        let message = caps[5].to_string();
+        let extra_fields = vec![("thread".to_string(), thread), ("class".to_string(), class)];
+
+        ParsedLine {
+            raw: raw.to_string(),
+            level,
+            timestamp,
+            message,
+            format: LogFormat::Log4j,
+            pretty_json: None,
+            extra_fields,
+            template: String::new(),
+        }
+    } else {
+        ParsedLine {
+            raw: raw.to_string(),
+            level: LEVEL_RE.find(raw).and_then(|m| parse_level_str(m.as_str())),
+            timestamp: PLAIN_TIMESTAMP_RE.find(raw).map(|m| m.as_str().to_string()),
+            message: raw.to_string(),
+            format: LogFormat::Log4j,
+            pretty_json: None,
+            extra_fields: Vec::new(),
+            template: String::new(),
+        }
+    }
+}
+
+fn parse_python_log_line(raw: &str) -> ParsedLine {
+    if let Some(caps) = PYTHON_LOG_RE.captures(raw) {
+        let timestamp = Some(caps[1].to_string());
+        let module = caps[2].to_string();
+        let level = parse_level_str(&caps[3]);
+        let message = caps[4].to_string();
+        let extra_fields = vec![("module".to_string(), module)];
+
+        ParsedLine {
+            raw: raw.to_string(),
+            level,
+            timestamp,
+            message,
+            format: LogFormat::PythonLog,
+            pretty_json: None,
+            extra_fields,
+            template: String::new(),
+        }
+    } else {
+        ParsedLine {
+            raw: raw.to_string(),
+            level: LEVEL_RE.find(raw).and_then(|m| parse_level_str(m.as_str())),
+            timestamp: PLAIN_TIMESTAMP_RE.find(raw).map(|m| m.as_str().to_string()),
+            message: raw.to_string(),
+            format: LogFormat::PythonLog,
+            pretty_json: None,
+            extra_fields: Vec::new(),
+            template: String::new(),
+        }
+    }
+}
+
+/// Map HTTP status code to log level.
+fn status_to_level(status: u16) -> Option<LogLevel> {
+    match status {
+        500..=599 => Some(LogLevel::Error),
+        400..=499 => Some(LogLevel::Warn),
+        _ => Some(LogLevel::Info),
+    }
+}
+
+fn parse_access_log_line(raw: &str) -> ParsedLine {
+    if let Some(caps) = ACCESS_LOG_RE.captures(raw) {
+        let ip = caps[1].to_string();
+        let user = caps[2].to_string();
+        let timestamp = Some(caps[3].to_string());
+        let method = caps[4].to_string();
+        let path = caps[5].to_string();
+        let status: u16 = caps[6].parse().unwrap_or(0);
+        let bytes = caps[7].to_string();
+        let level = status_to_level(status);
+        let message = format!("{} {} {}", method, path, status);
+
+        let mut extra_fields = Vec::new();
+        extra_fields.push(("ip".to_string(), ip));
+        if user != "-" {
+            extra_fields.push(("user".to_string(), user));
+        }
+        extra_fields.push(("bytes".to_string(), bytes));
+        if let Some(referer) = caps.get(8) {
+            let r = referer.as_str();
+            if r != "-" {
+                extra_fields.push(("referer".to_string(), r.to_string()));
+            }
+        }
+        if let Some(ua) = caps.get(9) {
+            extra_fields.push(("ua".to_string(), ua.as_str().to_string()));
+        }
+
+        ParsedLine {
+            raw: raw.to_string(),
+            level,
+            timestamp,
+            message,
+            format: LogFormat::AccessLog,
+            pretty_json: None,
+            extra_fields,
+            template: String::new(),
+        }
+    } else {
+        ParsedLine {
+            raw: raw.to_string(),
+            level: None,
+            timestamp: None,
+            message: raw.to_string(),
+            format: LogFormat::AccessLog,
+            pretty_json: None,
+            extra_fields: Vec::new(),
+            template: String::new(),
+        }
     }
 }
 

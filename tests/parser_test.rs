@@ -223,28 +223,36 @@ fn test_parse_json_extra_fields_captured() {
     let line = r#"{"level":"error","message":"Failed to connect","error":"Connection refused","host":"localhost:6379"}"#;
     let parsed = parse_line(line, LogFormat::Json);
     assert_eq!(parsed.extra_fields.len(), 2);
-    assert!(parsed
-        .extra_fields
-        .iter()
-        .any(|(k, v)| k == "error" && v == r#""Connection refused""#));
-    assert!(parsed
-        .extra_fields
-        .iter()
-        .any(|(k, v)| k == "host" && v == r#""localhost:6379""#));
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "error" && v == r#""Connection refused""#)
+    );
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "host" && v == r#""localhost:6379""#)
+    );
 }
 
 #[test]
 fn test_parse_json_extra_fields_numeric_values_bare() {
     let line = r#"{"level":"info","message":"Request handled","duration_ms":23,"status":200}"#;
     let parsed = parse_line(line, LogFormat::Json);
-    assert!(parsed
-        .extra_fields
-        .iter()
-        .any(|(k, v)| k == "duration_ms" && v == "23"));
-    assert!(parsed
-        .extra_fields
-        .iter()
-        .any(|(k, v)| k == "status" && v == "200"));
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "duration_ms" && v == "23")
+    );
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "status" && v == "200")
+    );
 }
 
 #[test]
@@ -320,7 +328,10 @@ fn test_template_different_structure_no_match() {
 
 #[test]
 fn test_parse_line_sets_template() {
-    let parsed = parse_line("2024-01-15 ERROR Connection to 10.0.0.1 refused", LogFormat::Plain);
+    let parsed = parse_line(
+        "2024-01-15 ERROR Connection to 10.0.0.1 refused",
+        LogFormat::Plain,
+    );
     assert!(!parsed.template.is_empty());
     assert!(parsed.template.contains("*"));
 }
@@ -329,7 +340,8 @@ fn test_parse_line_sets_template() {
 fn test_detect_logfmt_format() {
     let lines: Vec<String> = vec![
         "level=info ts=2024-01-15T08:30:01Z msg=\"server starting\" addr=0.0.0.0:8080".into(),
-        "level=debug ts=2024-01-15T08:30:02Z msg=\"connected to database\" host=localhost:5432".into(),
+        "level=debug ts=2024-01-15T08:30:02Z msg=\"connected to database\" host=localhost:5432"
+            .into(),
         "level=warn ts=2024-01-15T08:30:03Z msg=\"cache miss\" rate=0.45".into(),
     ];
     assert_eq!(detect_format(&lines), LogFormat::Logfmt);
@@ -360,7 +372,8 @@ fn test_plain_kv_not_detected_as_logfmt() {
 
 #[test]
 fn test_parse_logfmt_extracts_level() {
-    let line = r#"level=error ts=2024-01-15T08:30:05Z msg="connection refused" host=localhost:6379"#;
+    let line =
+        r#"level=error ts=2024-01-15T08:30:05Z msg="connection refused" host=localhost:6379"#;
     let parsed = parse_line(line, LogFormat::Logfmt);
     assert_eq!(parsed.level, Some(LogLevel::Error));
     assert_eq!(parsed.format, LogFormat::Logfmt);
@@ -399,9 +412,24 @@ fn test_parse_logfmt_extra_fields() {
     let line = r#"level=info ts=2024-01-15T08:30:01Z msg="request handled" method=GET status=200 duration=23ms"#;
     let parsed = parse_line(line, LogFormat::Logfmt);
     assert_eq!(parsed.extra_fields.len(), 3);
-    assert!(parsed.extra_fields.iter().any(|(k, v)| k == "method" && v == "GET"));
-    assert!(parsed.extra_fields.iter().any(|(k, v)| k == "status" && v == "200"));
-    assert!(parsed.extra_fields.iter().any(|(k, v)| k == "duration" && v == "23ms"));
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "method" && v == "GET")
+    );
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "status" && v == "200")
+    );
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "duration" && v == "23ms")
+    );
 }
 
 #[test]
@@ -430,13 +458,22 @@ fn test_parse_logfmt_quoted_value_with_spaces() {
     let line = r#"level=error msg="connection refused" err="dial tcp 127.0.0.1:6379: connect: connection refused""#;
     let parsed = parse_line(line, LogFormat::Logfmt);
     assert_eq!(parsed.message, "connection refused");
-    assert!(parsed.extra_fields.iter().any(|(k, v)| k == "err" && v.contains("dial tcp")));
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "err" && v.contains("dial tcp"))
+    );
 }
 
 #[test]
 fn test_detect_logfmt_from_sample_file() {
     let content = std::fs::read_to_string("testdata/sample_logfmt.log").unwrap();
-    let lines: Vec<String> = content.lines().filter(|l| !l.is_empty()).map(String::from).collect();
+    let lines: Vec<String> = content
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(String::from)
+        .collect();
     assert_eq!(detect_format(&lines), LogFormat::Logfmt);
 
     let parsed = parse_line(&lines[0], LogFormat::Logfmt);
@@ -462,15 +499,18 @@ fn test_docker_json_log_extracts_message() {
 fn test_docker_json_log_extracts_timestamp() {
     let line = r#"{"log":"Hello\n","stream":"stdout","time":"2024-01-15T08:30:01.000000000Z"}"#;
     let parsed = parse_line(line, LogFormat::Json);
-    assert_eq!(parsed.timestamp, Some("2024-01-15T08:30:01.000000000Z".to_string()));
+    assert_eq!(
+        parsed.timestamp,
+        Some("2024-01-15T08:30:01.000000000Z".to_string())
+    );
 }
 
 #[test]
-fn test_docker_json_log_not_in_extra_fields() {
+fn test_docker_json_log_known_keys_suppressed() {
     let line = r#"{"log":"Hello\n","stream":"stdout","time":"2024-01-15T08:30:01.000000000Z"}"#;
     let parsed = parse_line(line, LogFormat::Json);
-    assert!(!parsed.extra_fields.iter().any(|(k, _)| k == "log"));
-    assert!(parsed.extra_fields.iter().any(|(k, _)| k == "stream"));
+    // log, stream, and time are all in KNOWN_JSON_KEYS — no extra fields
+    assert!(parsed.extra_fields.is_empty());
 }
 
 #[test]
@@ -482,12 +522,413 @@ fn test_docker_json_log_strips_trailing_newline() {
 }
 
 #[test]
+fn test_docker_json_level_fallback_from_message() {
+    // Docker logs have no "level" key — level is embedded in the log text
+    let line = r#"{"log":"2024-01-15T08:30:01Z ERROR Connection refused\n","stream":"stderr","time":"2024-01-15T08:30:01.000000000Z"}"#;
+    let parsed = parse_line(line, LogFormat::Json);
+    assert_eq!(parsed.level, Some(LogLevel::Error));
+}
+
+#[test]
+fn test_docker_json_no_level_when_absent() {
+    // Plain message with no level keyword → level should be None
+    let line = r#"{"log":"Starting myapp v2.4.1\n","stream":"stdout","time":"2024-01-15T08:30:00.000000000Z"}"#;
+    let parsed = parse_line(line, LogFormat::Json);
+    assert_eq!(parsed.level, None);
+}
+
+#[test]
 fn test_docker_json_sample_file() {
     let content = std::fs::read_to_string("testdata/sample_docker.log").unwrap();
-    let lines: Vec<String> = content.lines().filter(|l| !l.is_empty()).map(String::from).collect();
+    let lines: Vec<String> = content
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(String::from)
+        .collect();
     assert_eq!(detect_format(&lines), LogFormat::Json);
+    assert_eq!(lines.len(), 10);
 
-    let parsed = parse_line(&lines[0], LogFormat::Json);
-    assert_eq!(parsed.message, "2024-01-15T08:30:01Z INFO  Server starting on port 3000");
-    assert!(parsed.timestamp.is_some());
+    // Line 0: plain startup banner, no level
+    let p0 = parse_line(&lines[0], LogFormat::Json);
+    assert_eq!(p0.message, "Starting myapp v2.4.1");
+    assert_eq!(p0.level, None);
+    assert!(p0.timestamp.is_some());
+
+    // Line 1: has INFO in the message text
+    let p1 = parse_line(&lines[1], LogFormat::Json);
+    assert_eq!(p1.level, Some(LogLevel::Info));
+
+    // Line 5: ERROR on stderr
+    let p5 = parse_line(&lines[5], LogFormat::Json);
+    assert_eq!(p5.level, Some(LogLevel::Error));
+
+    // Line 6: "panic:" on stderr — PANIC matches as Fatal
+    let p6 = parse_line(&lines[6], LogFormat::Json);
+    assert_eq!(
+        p6.message,
+        "panic: runtime error: index out of range [3] with length 2"
+    );
+    assert_eq!(p6.level, Some(LogLevel::Fatal));
+}
+
+// ---------------------------------------------------------------------------
+// Klog (Kubernetes) parser tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_detect_klog_format() {
+    let lines: Vec<String> = vec![
+        "I0115 08:30:00.000000       1 server.go:42] Starting server on :8080".into(),
+        "W0115 08:30:02.234567       1 config.go:18] Deprecated flag used".into(),
+        "E0115 08:30:04.456789    1234 handler.go:77] Failed to process request".into(),
+    ];
+    assert_eq!(detect_format(&lines), LogFormat::Klog);
+}
+
+#[test]
+fn test_parse_klog_info() {
+    let line = "I0115 08:30:00.000000       1 server.go:42] Starting server on :8080";
+    let parsed = parse_line(line, LogFormat::Klog);
+    assert_eq!(parsed.level, Some(LogLevel::Info));
+    assert_eq!(parsed.timestamp, Some("0115 08:30:00.000000".to_string()));
+    assert_eq!(parsed.message, "Starting server on :8080");
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "pid" && v == "1")
+    );
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "source" && v == "server.go:42")
+    );
+}
+
+#[test]
+fn test_parse_klog_warn() {
+    let line = "W0115 08:30:02.234567       1 config.go:18] Deprecated flag --insecure-port used";
+    let parsed = parse_line(line, LogFormat::Klog);
+    assert_eq!(parsed.level, Some(LogLevel::Warn));
+}
+
+#[test]
+fn test_parse_klog_error() {
+    let line = "E0115 08:30:04.456789    1234 handler.go:77] Failed to process request: context deadline exceeded";
+    let parsed = parse_line(line, LogFormat::Klog);
+    assert_eq!(parsed.level, Some(LogLevel::Error));
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "pid" && v == "1234")
+    );
+}
+
+#[test]
+fn test_parse_klog_fatal() {
+    let line = "F0115 08:30:08.890123       1 server.go:99] Unable to bind to port 6443: address already in use";
+    let parsed = parse_line(line, LogFormat::Klog);
+    assert_eq!(parsed.level, Some(LogLevel::Fatal));
+}
+
+#[test]
+fn test_klog_sample_file() {
+    let content = std::fs::read_to_string("testdata/sample_klog.log").unwrap();
+    let lines: Vec<String> = content
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(String::from)
+        .collect();
+    assert_eq!(detect_format(&lines), LogFormat::Klog);
+    assert_eq!(lines.len(), 10);
+
+    let p0 = parse_line(&lines[0], LogFormat::Klog);
+    assert_eq!(p0.level, Some(LogLevel::Info));
+    assert_eq!(p0.message, "Starting server on :8080");
+
+    let p8 = parse_line(&lines[8], LogFormat::Klog);
+    assert_eq!(p8.level, Some(LogLevel::Fatal));
+}
+
+// ---------------------------------------------------------------------------
+// Log4j / Java logging parser tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_detect_log4j_format() {
+    let lines: Vec<String> = vec![
+        "2024-01-15 08:30:00.123 [main] INFO  com.example.Application - Starting up".into(),
+        "2024-01-15 08:30:01.234 [main] DEBUG com.example.db.Pool - Init pool".into(),
+    ];
+    assert_eq!(detect_format(&lines), LogFormat::Log4j);
+}
+
+#[test]
+fn test_parse_log4j_info() {
+    let line =
+        "2024-01-15 08:30:00.123 [main] INFO  com.example.Application - Application starting up";
+    let parsed = parse_line(line, LogFormat::Log4j);
+    assert_eq!(parsed.level, Some(LogLevel::Info));
+    assert_eq!(
+        parsed.timestamp,
+        Some("2024-01-15 08:30:00.123".to_string())
+    );
+    assert_eq!(parsed.message, "Application starting up");
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "thread" && v == "main")
+    );
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "class" && v == "com.example.Application")
+    );
+}
+
+#[test]
+fn test_parse_log4j_error() {
+    let line = "2024-01-15 08:30:05.678 [http-nio-8080-exec-1] ERROR com.example.service.UserService - Failed to fetch user 42: Connection refused";
+    let parsed = parse_line(line, LogFormat::Log4j);
+    assert_eq!(parsed.level, Some(LogLevel::Error));
+    assert_eq!(
+        parsed.message,
+        "Failed to fetch user 42: Connection refused"
+    );
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "thread" && v == "http-nio-8080-exec-1")
+    );
+}
+
+#[test]
+fn test_parse_log4j_fatal() {
+    let line = "2024-01-15 08:30:09.012 [main] FATAL com.example.Application - Unrecoverable error: out of memory";
+    let parsed = parse_line(line, LogFormat::Log4j);
+    assert_eq!(parsed.level, Some(LogLevel::Fatal));
+}
+
+#[test]
+fn test_log4j_sample_file() {
+    let content = std::fs::read_to_string("testdata/sample_log4j.log").unwrap();
+    let lines: Vec<String> = content
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(String::from)
+        .collect();
+    assert_eq!(detect_format(&lines), LogFormat::Log4j);
+    assert_eq!(lines.len(), 10);
+
+    let p0 = parse_line(&lines[0], LogFormat::Log4j);
+    assert_eq!(p0.level, Some(LogLevel::Info));
+    assert_eq!(p0.message, "Application starting up");
+
+    let p5 = parse_line(&lines[5], LogFormat::Log4j);
+    assert_eq!(p5.level, Some(LogLevel::Error));
+
+    let p9 = parse_line(&lines[9], LogFormat::Log4j);
+    assert_eq!(p9.level, Some(LogLevel::Fatal));
+}
+
+// ---------------------------------------------------------------------------
+// Python logging parser tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_detect_python_log_format() {
+    let lines: Vec<String> = vec![
+        "2024-01-15 08:30:00,123 - myapp - INFO - Application started".into(),
+        "2024-01-15 08:30:01,234 - myapp.config - DEBUG - Loaded config".into(),
+    ];
+    assert_eq!(detect_format(&lines), LogFormat::PythonLog);
+}
+
+#[test]
+fn test_parse_python_log_info() {
+    let line = "2024-01-15 08:30:00,123 - myapp - INFO - Application started successfully";
+    let parsed = parse_line(line, LogFormat::PythonLog);
+    assert_eq!(parsed.level, Some(LogLevel::Info));
+    assert_eq!(
+        parsed.timestamp,
+        Some("2024-01-15 08:30:00,123".to_string())
+    );
+    assert_eq!(parsed.message, "Application started successfully");
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "module" && v == "myapp")
+    );
+}
+
+#[test]
+fn test_parse_python_log_warning() {
+    let line = "2024-01-15 08:30:03,456 - myapp.web - WARNING - Slow query detected: 2.3s";
+    let parsed = parse_line(line, LogFormat::PythonLog);
+    assert_eq!(parsed.level, Some(LogLevel::Warn));
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "module" && v == "myapp.web")
+    );
+}
+
+#[test]
+fn test_parse_python_log_critical() {
+    let line = "2024-01-15 08:30:09,012 - myapp - CRITICAL - Unhandled exception in main loop";
+    let parsed = parse_line(line, LogFormat::PythonLog);
+    assert_eq!(parsed.level, Some(LogLevel::Fatal));
+}
+
+#[test]
+fn test_python_log_sample_file() {
+    let content = std::fs::read_to_string("testdata/sample_python.log").unwrap();
+    let lines: Vec<String> = content
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(String::from)
+        .collect();
+    assert_eq!(detect_format(&lines), LogFormat::PythonLog);
+    assert_eq!(lines.len(), 10);
+
+    let p0 = parse_line(&lines[0], LogFormat::PythonLog);
+    assert_eq!(p0.level, Some(LogLevel::Info));
+    assert_eq!(p0.message, "Application started successfully");
+    assert!(
+        p0.extra_fields
+            .iter()
+            .any(|(k, v)| k == "module" && v == "myapp")
+    );
+
+    let p4 = parse_line(&lines[4], LogFormat::PythonLog);
+    assert_eq!(p4.level, Some(LogLevel::Error));
+
+    let p9 = parse_line(&lines[9], LogFormat::PythonLog);
+    assert_eq!(p9.level, Some(LogLevel::Fatal));
+}
+
+// ---------------------------------------------------------------------------
+// Apache/Nginx access log parser tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_detect_access_log_format() {
+    let lines: Vec<String> = vec![
+        r#"192.168.1.100 - frank [10/Oct/2024:13:55:36 -0700] "GET /api/users HTTP/1.1" 200 2326"#
+            .into(),
+        r#"10.0.0.1 - - [10/Oct/2024:13:55:37 -0700] "POST /api/login HTTP/1.1" 401 512"#.into(),
+    ];
+    assert_eq!(detect_format(&lines), LogFormat::AccessLog);
+}
+
+#[test]
+fn test_parse_access_log_200() {
+    let line =
+        r#"192.168.1.100 - frank [10/Oct/2024:13:55:36 -0700] "GET /api/users HTTP/1.1" 200 2326"#;
+    let parsed = parse_line(line, LogFormat::AccessLog);
+    assert_eq!(parsed.level, Some(LogLevel::Info));
+    assert_eq!(
+        parsed.timestamp,
+        Some("10/Oct/2024:13:55:36 -0700".to_string())
+    );
+    assert_eq!(parsed.message, "GET /api/users 200");
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "ip" && v == "192.168.1.100")
+    );
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "user" && v == "frank")
+    );
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "bytes" && v == "2326")
+    );
+}
+
+#[test]
+fn test_parse_access_log_401_is_warn() {
+    let line = r#"10.0.0.1 - - [10/Oct/2024:13:55:37 -0700] "POST /api/login HTTP/1.1" 401 512"#;
+    let parsed = parse_line(line, LogFormat::AccessLog);
+    assert_eq!(parsed.level, Some(LogLevel::Warn));
+    // user "-" should be excluded from extra_fields
+    assert!(!parsed.extra_fields.iter().any(|(k, _)| k == "user"));
+}
+
+#[test]
+fn test_parse_access_log_500_is_error() {
+    let line = r#"10.0.0.5 - - [10/Oct/2024:13:55:40 -0700] "PUT /api/config HTTP/1.1" 500 1024"#;
+    let parsed = parse_line(line, LogFormat::AccessLog);
+    assert_eq!(parsed.level, Some(LogLevel::Error));
+    assert_eq!(parsed.message, "PUT /api/config 500");
+}
+
+#[test]
+fn test_parse_access_log_combined_format() {
+    let line = r#"192.168.1.100 - frank [10/Oct/2024:13:55:41 -0700] "GET /index.html HTTP/1.1" 200 5120 "https://example.com/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)""#;
+    let parsed = parse_line(line, LogFormat::AccessLog);
+    assert_eq!(parsed.level, Some(LogLevel::Info));
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "referer" && v == "https://example.com/")
+    );
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "ua" && v.contains("Mozilla"))
+    );
+}
+
+#[test]
+fn test_parse_access_log_combined_dash_referer() {
+    let line = r#"10.0.0.1 - - [10/Oct/2024:13:55:42 -0700] "GET /api/health HTTP/1.1" 200 13 "-" "curl/8.1.2""#;
+    let parsed = parse_line(line, LogFormat::AccessLog);
+    // referer "-" should be excluded
+    assert!(!parsed.extra_fields.iter().any(|(k, _)| k == "referer"));
+    assert!(
+        parsed
+            .extra_fields
+            .iter()
+            .any(|(k, v)| k == "ua" && v == "curl/8.1.2")
+    );
+}
+
+#[test]
+fn test_access_log_sample_file() {
+    let content = std::fs::read_to_string("testdata/sample_apache.log").unwrap();
+    let lines: Vec<String> = content
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(String::from)
+        .collect();
+    assert_eq!(detect_format(&lines), LogFormat::AccessLog);
+    assert_eq!(lines.len(), 8);
+
+    let p0 = parse_line(&lines[0], LogFormat::AccessLog);
+    assert_eq!(p0.level, Some(LogLevel::Info));
+    assert_eq!(p0.message, "GET /api/users 200");
+
+    let p4 = parse_line(&lines[4], LogFormat::AccessLog);
+    assert_eq!(p4.level, Some(LogLevel::Error));
+
+    // Combined format line with referer and user-agent
+    let p5 = parse_line(&lines[5], LogFormat::AccessLog);
+    assert!(p5.extra_fields.iter().any(|(k, _)| k == "referer"));
+    assert!(p5.extra_fields.iter().any(|(k, _)| k == "ua"));
 }

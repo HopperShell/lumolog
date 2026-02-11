@@ -213,11 +213,7 @@ fn main() -> anyhow::Result<()> {
                                     mouse.row,
                                     terminal_area,
                                 ) {
-                                    app.open_context_menu(
-                                        value,
-                                        kind,
-                                        (mouse.column, mouse.row),
-                                    );
+                                    app.open_context_menu(value, kind, (mouse.column, mouse.row));
                                 }
                             }
                         } else if app.mode() != AppMode::Cursor {

@@ -489,10 +489,7 @@ fn test_json_extra_fields_rendered_dimmed() {
         .spans
         .iter()
         .any(|span| span.style.fg == Some(Color::DarkGray) && span.content.as_ref() == "  ");
-    assert!(
-        has_separator,
-        "Extra fields should have a dimmed separator"
-    );
+    assert!(has_separator, "Extra fields should have a dimmed separator");
 }
 
 #[test]
@@ -562,10 +559,7 @@ fn test_search_highlight_no_match() {
 
 #[test]
 fn test_search_highlight_empty_pattern() {
-    let line = Line::from(vec![Span::styled(
-        "Hello".to_string(),
-        Style::default(),
-    )]);
+    let line = Line::from(vec![Span::styled("Hello".to_string(), Style::default())]);
     let result = apply_search_highlight(line, "");
     assert_eq!(result.spans.len(), 1);
 }

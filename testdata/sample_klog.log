@@ -1,0 +1,10 @@
+I0115 08:30:00.000000       1 server.go:42] Starting server on :8080
+I0115 08:30:01.123456       1 server.go:55] Health check endpoint registered
+W0115 08:30:02.234567       1 config.go:18] Deprecated flag --insecure-port used
+I0115 08:30:03.345678       1 controller.go:102] Synced all informers successfully
+E0115 08:30:04.456789    1234 handler.go:77] Failed to process request: context deadline exceeded
+I0115 08:30:05.567890       1 server.go:60] Serving securely on 0.0.0.0:6443
+W0115 08:30:06.678901    1234 cache.go:33] Cache miss rate above threshold: 0.45
+E0115 08:30:07.789012       1 controller.go:210] Error reconciling pod default/nginx-abc123: connection refused
+F0115 08:30:08.890123       1 server.go:99] Unable to bind to port 6443: address already in use
+I0115 08:30:09.901234       1 controller.go:115] Garbage collection completed: 42 items removed
