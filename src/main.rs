@@ -153,7 +153,35 @@ fn main() -> anyhow::Result<()> {
                 eprintln!("Example: cat app.log | lumolog");
                 std::process::exit(1);
             }
-            source::StdinSource::read_all()?.lines().to_vec()
+            let lines = source::StdinSource::read_all()?.lines().to_vec();
+            if lines.is_empty() {
+                eprintln!("No input received from stdin.");
+                eprintln!("Example: docker compose logs 2>&1 | lumolog");
+                std::process::exit(1);
+            }
+
+            // Restore stdin to /dev/tty so crossterm can read keyboard events
+            #[cfg(unix)]
+            {
+                use std::os::unix::io::AsRawFd;
+                match std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open("/dev/tty")
+                {
+                    Ok(tty) => {
+                        let tty_fd = tty.as_raw_fd();
+                        unsafe { libc::dup2(tty_fd, libc::STDIN_FILENO) };
+                        std::mem::forget(tty);
+                    }
+                    Err(e) => {
+                        eprintln!("Cannot open /dev/tty for interactive mode: {e}");
+                        std::process::exit(1);
+                    }
+                }
+            }
+
+            lines
         }
     };
 
@@ -189,8 +217,21 @@ fn main() -> anyhow::Result<()> {
         );
     }
 
+    let result = run_event_loop(&mut terminal, &mut app, &mut follow_source);
+
+    execute!(std::io::stdout(), DisableMouseCapture)?;
+    ratatui::restore();
+
+    result
+}
+
+fn run_event_loop(
+    terminal: &mut ratatui::DefaultTerminal,
+    app: &mut App,
+    follow_source: &mut Option<FollowableSource>,
+) -> anyhow::Result<()> {
     loop {
-        terminal.draw(|frame| ui::render(frame, &mut app))?;
+        terminal.draw(|frame| ui::render(frame, app))?;
 
         let terminal_area: ratatui::layout::Rect = terminal.size()?.into();
 
@@ -204,7 +245,7 @@ fn main() -> anyhow::Result<()> {
                             KeyCode::Down => app.palette_down(),
                             KeyCode::Enter => {
                                 if let Some(action) = app.palette_execute() {
-                                    dispatch_action(action, &mut app);
+                                    dispatch_action(action, app);
                                 }
                             }
                             KeyCode::Backspace => app.palette_backspace(),
@@ -224,7 +265,7 @@ fn main() -> anyhow::Result<()> {
                             KeyCode::Char('3') => app.time_preset(60),
                             KeyCode::Char('4') => app.time_preset(1440),
                             KeyCode::Char('Y') => {
-                                dispatch_action(command::Action::YankAllFiltered, &mut app)
+                                dispatch_action(command::Action::YankAllFiltered, app)
                             }
                             KeyCode::Char('c') => {
                                 app.clear_time_range();
@@ -240,7 +281,7 @@ fn main() -> anyhow::Result<()> {
                             KeyCode::Down | KeyCode::Char('j') => app.menu_down(),
                             KeyCode::Enter => {
                                 if let Some((action, value)) = app.execute_menu_action() {
-                                    execute_action(action, value, &mut app);
+                                    execute_action(action, value, app);
                                 }
                             }
                             KeyCode::Esc => app.close_context_menu(),
@@ -251,10 +292,10 @@ fn main() -> anyhow::Result<()> {
                             KeyCode::Down | KeyCode::Char('j') => app.cursor_down(1),
                             KeyCode::Up | KeyCode::Char('k') => app.cursor_up(1),
                             KeyCode::Char('y') => {
-                                dispatch_action(command::Action::YankLine, &mut app)
+                                dispatch_action(command::Action::YankLine, app)
                             }
                             KeyCode::Char('Y') => {
-                                dispatch_action(command::Action::YankAllFiltered, &mut app)
+                                dispatch_action(command::Action::YankAllFiltered, app)
                             }
                             KeyCode::Char('s') => app.filter_by_similar(),
                             KeyCode::Right | KeyCode::Char('l') => app.scroll_right(1),
@@ -304,7 +345,7 @@ fn main() -> anyhow::Result<()> {
                             KeyCode::Char('v') => app.cycle_level_up(),
                             KeyCode::Char('V') => app.cycle_level_down(),
                             KeyCode::Char('Y') => {
-                                dispatch_action(command::Action::YankAllFiltered, &mut app)
+                                dispatch_action(command::Action::YankAllFiltered, app)
                             }
                             KeyCode::Char('t') => app.enter_time_mode(),
                             KeyCode::Char('?') => app.open_palette(),
@@ -345,7 +386,7 @@ fn main() -> anyhow::Result<()> {
                                     ) {
                                         if let Some((action, value)) = app.execute_menu_item(index)
                                         {
-                                            execute_action(action, value, &mut app);
+                                            execute_action(action, value, app);
                                         }
                                     } else {
                                         app.close_context_menu();
@@ -415,7 +456,7 @@ fn main() -> anyhow::Result<()> {
 
         // Poll for new lines in follow mode (unless paused)
         if !app.is_follow_paused() {
-            if let Some(ref mut source) = follow_source {
+            if let Some(source) = follow_source.as_mut() {
                 let new_lines = source.read_new_lines()?;
                 if !new_lines.is_empty() {
                     app.append_lines(new_lines);
@@ -428,7 +469,5 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
-    execute!(std::io::stdout(), DisableMouseCapture)?;
-    ratatui::restore();
     Ok(())
 }
