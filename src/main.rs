@@ -14,10 +14,15 @@ use crossterm::event::{
     MouseEventKind,
 };
 use crossterm::execute;
-use source::{FileSource, FollowableSource};
+use source::{FileSource, FollowableSource, FollowableStdinSource};
 use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::time::Duration;
+
+enum FollowSource {
+    File(FollowableSource),
+    Stdin(FollowableStdinSource),
+}
 
 #[derive(Parser, Debug)]
 #[command(
@@ -29,7 +34,7 @@ struct Cli {
     /// Log file to view. Omit to read from stdin.
     file: Option<PathBuf>,
 
-    /// Follow the file for new lines (like tail -f). Requires a file argument.
+    /// Follow for new lines (like tail -f). Works with files and piped stdin.
     #[arg(short, long)]
     follow: bool,
 }
@@ -133,19 +138,23 @@ fn dispatch_action(action: command::Action, app: &mut App) {
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
-    if cli.follow && cli.file.is_none() {
-        eprintln!("Error: --follow requires a file argument");
-        std::process::exit(1);
-    }
-
-    let lines = match &cli.file {
+    let (lines, mut follow_source) = match &cli.file {
         Some(path) => {
             if !path.exists() {
                 eprintln!("Error: file not found: {}", path.display());
                 std::process::exit(1);
             }
             let source = FileSource::open(path)?;
-            source.lines().to_vec()
+            let follow = if cli.follow {
+                let initial_offset = std::fs::metadata(path)?.len();
+                Some(FollowSource::File(FollowableSource::new(
+                    path,
+                    initial_offset,
+                )))
+            } else {
+                None
+            };
+            (source.lines().to_vec(), follow)
         }
         None => {
             if std::io::stdin().is_terminal() {
@@ -153,45 +162,66 @@ fn main() -> anyhow::Result<()> {
                 eprintln!("Example: cat app.log | lumolog");
                 std::process::exit(1);
             }
-            let lines = source::StdinSource::read_all()?.lines().to_vec();
-            if lines.is_empty() {
-                eprintln!("No input received from stdin.");
-                eprintln!("Example: docker compose logs 2>&1 | lumolog");
-                std::process::exit(1);
-            }
 
-            // Restore stdin to /dev/tty so crossterm can read keyboard events
-            #[cfg(unix)]
-            {
-                use std::os::unix::io::AsRawFd;
-                match std::fs::OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .open("/dev/tty")
+            if cli.follow {
+                // Stdin follow mode: spawn background reader before dup2
+                let mut stdin_source = FollowableStdinSource::spawn_stdin();
+                let initial = stdin_source.recv_initial(Duration::from_millis(500));
+
+                // Redirect stdin to /dev/tty so crossterm can read keyboard events
+                #[cfg(unix)]
                 {
-                    Ok(tty) => {
-                        let tty_fd = tty.as_raw_fd();
-                        unsafe { libc::dup2(tty_fd, libc::STDIN_FILENO) };
-                        std::mem::forget(tty);
-                    }
-                    Err(e) => {
-                        eprintln!("Cannot open /dev/tty for interactive mode: {e}");
-                        std::process::exit(1);
+                    use std::os::unix::io::AsRawFd;
+                    match std::fs::OpenOptions::new()
+                        .read(true)
+                        .write(true)
+                        .open("/dev/tty")
+                    {
+                        Ok(tty) => {
+                            let tty_fd = tty.as_raw_fd();
+                            unsafe { libc::dup2(tty_fd, libc::STDIN_FILENO) };
+                            std::mem::forget(tty);
+                        }
+                        Err(e) => {
+                            eprintln!("Cannot open /dev/tty for interactive mode: {e}");
+                            std::process::exit(1);
+                        }
                     }
                 }
+
+                (initial, Some(FollowSource::Stdin(stdin_source)))
+            } else {
+                let lines = source::StdinSource::read_all()?.lines().to_vec();
+                if lines.is_empty() {
+                    eprintln!("No input received from stdin.");
+                    eprintln!("Example: docker compose logs 2>&1 | lumolog");
+                    std::process::exit(1);
+                }
+
+                // Redirect stdin to /dev/tty so crossterm can read keyboard events
+                #[cfg(unix)]
+                {
+                    use std::os::unix::io::AsRawFd;
+                    match std::fs::OpenOptions::new()
+                        .read(true)
+                        .write(true)
+                        .open("/dev/tty")
+                    {
+                        Ok(tty) => {
+                            let tty_fd = tty.as_raw_fd();
+                            unsafe { libc::dup2(tty_fd, libc::STDIN_FILENO) };
+                            std::mem::forget(tty);
+                        }
+                        Err(e) => {
+                            eprintln!("Cannot open /dev/tty for interactive mode: {e}");
+                            std::process::exit(1);
+                        }
+                    }
+                }
+
+                (lines, None)
             }
-
-            lines
         }
-    };
-
-    // Set up follow source if --follow was requested
-    let mut follow_source = if cli.follow {
-        let path = cli.file.as_ref().unwrap();
-        let initial_offset = std::fs::metadata(path)?.len();
-        Some(FollowableSource::new(path, initial_offset))
-    } else {
-        None
     };
 
     let mut terminal = ratatui::init();
@@ -215,6 +245,8 @@ fn main() -> anyhow::Result<()> {
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| path.display().to_string()),
         );
+    } else {
+        app.set_source_name("stdin".to_string());
     }
 
     let result = run_event_loop(&mut terminal, &mut app, &mut follow_source);
@@ -228,7 +260,7 @@ fn main() -> anyhow::Result<()> {
 fn run_event_loop(
     terminal: &mut ratatui::DefaultTerminal,
     app: &mut App,
-    follow_source: &mut Option<FollowableSource>,
+    follow_source: &mut Option<FollowSource>,
 ) -> anyhow::Result<()> {
     loop {
         terminal.draw(|frame| ui::render(frame, app))?;
@@ -457,7 +489,10 @@ fn run_event_loop(
         // Poll for new lines in follow mode (unless paused)
         if !app.is_follow_paused() {
             if let Some(source) = follow_source.as_mut() {
-                let new_lines = source.read_new_lines()?;
+                let new_lines = match source {
+                    FollowSource::File(s) => s.read_new_lines()?,
+                    FollowSource::Stdin(s) => s.read_new_lines(),
+                };
                 if !new_lines.is_empty() {
                     app.append_lines(new_lines);
                 }
