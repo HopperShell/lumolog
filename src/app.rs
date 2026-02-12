@@ -448,6 +448,11 @@ impl App {
     /// Parse and append new lines, preserving scroll position.
     /// Auto-scrolls to bottom if the user was already at the bottom.
     pub fn append_lines(&mut self, new_raw: Vec<String>) {
+        // Re-detect format if app started with no lines (stdin follow mode)
+        if self.parsed_lines.is_empty() && !new_raw.is_empty() {
+            self.format = detect_format(&new_raw);
+        }
+
         let was_at_bottom = self.is_at_bottom();
 
         let new_parsed: Vec<ParsedLine> = new_raw

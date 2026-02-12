@@ -1,4 +1,5 @@
 use lumolog::app::{App, AppMode};
+use lumolog::parser::LogFormat;
 
 #[test]
 fn test_scroll_down() {
@@ -140,4 +141,16 @@ fn test_cursor_scrolls_viewport_up() {
     assert_eq!(app.cursor_position(), 0);
     // Viewport should have scrolled up to follow
     assert_eq!(app.scroll_offset(), 0);
+}
+
+#[test]
+fn test_append_lines_detects_format_when_starting_empty() {
+    let mut app = App::new(vec![]);
+    assert_eq!(app.format(), LogFormat::Plain);
+
+    app.append_lines(vec![
+        r#"{"level":"info","message":"hello","timestamp":"2024-01-01T00:00:00Z"}"#.to_string(),
+    ]);
+
+    assert_eq!(app.format(), LogFormat::Json);
 }
