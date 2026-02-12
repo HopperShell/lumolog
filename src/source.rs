@@ -2,6 +2,8 @@ use memmap2::Mmap;
 use std::fs::File;
 use std::io::{self, BufRead, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
+use std::time::Duration;
 
 pub struct FileSource {
     lines: Vec<String>,
@@ -91,5 +93,91 @@ impl FollowableSource {
         let lines: Vec<String> = text.lines().map(String::from).collect();
 
         Ok(lines)
+    }
+}
+
+pub struct FollowableStdinSource {
+    receiver: mpsc::Receiver<String>,
+    closed: bool,
+}
+
+impl FollowableStdinSource {
+    /// Spawn a background reader on the current stdin file descriptor.
+    /// Dups stdin fd so it remains valid even after dup2 redirects fd 0 to /dev/tty.
+    /// Must be called BEFORE any dup2 that redirects stdin.
+    #[cfg(unix)]
+    pub fn spawn_stdin() -> Self {
+        use std::os::unix::io::FromRawFd;
+        let fd = unsafe { libc::dup(libc::STDIN_FILENO) };
+        assert!(fd >= 0, "Failed to dup stdin fd");
+        let file = unsafe { File::from_raw_fd(fd) };
+        Self::from_reader(file)
+    }
+
+    /// Create from any reader. Spawns a background thread that reads lines
+    /// and sends them through an mpsc channel.
+    pub fn from_reader<R: io::Read + Send + 'static>(reader: R) -> Self {
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let buf_reader = io::BufReader::new(reader);
+            for line in buf_reader.lines() {
+                match line {
+                    Ok(l) => {
+                        if tx.send(l).is_err() {
+                            break;
+                        }
+                    }
+                    Err(_) => break,
+                }
+            }
+        });
+        Self {
+            receiver: rx,
+            closed: false,
+        }
+    }
+
+    /// Collect initial lines with a timeout.
+    /// Waits up to `timeout` for the first line, then drains all immediately
+    /// available lines (with 10ms gaps to catch burst data).
+    pub fn recv_initial(&mut self, timeout: Duration) -> Vec<String> {
+        let mut lines = Vec::new();
+        match self.receiver.recv_timeout(timeout) {
+            Ok(first) => {
+                lines.push(first);
+                while let Ok(line) = self.receiver.recv_timeout(Duration::from_millis(10)) {
+                    lines.push(line);
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                self.closed = true;
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+        }
+        lines
+    }
+
+    /// Non-blocking drain of all available lines from the channel.
+    pub fn read_new_lines(&mut self) -> Vec<String> {
+        if self.closed {
+            return Vec::new();
+        }
+        let mut lines = Vec::new();
+        loop {
+            match self.receiver.try_recv() {
+                Ok(line) => lines.push(line),
+                Err(mpsc::TryRecvError::Empty) => break,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.closed = true;
+                    break;
+                }
+            }
+        }
+        lines
+    }
+
+    /// Returns true if the stdin pipe has been closed (EOF / writer dropped).
+    pub fn is_closed(&self) -> bool {
+        self.closed
     }
 }
