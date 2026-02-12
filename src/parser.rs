@@ -259,10 +259,38 @@ fn parse_json_line(raw: &str) -> ParsedLine {
                 .or_else(|| value.get("time"))
                 .or_else(|| value.get("@timestamp"))
                 .or_else(|| value.get("ts"))
-                .and_then(|v| v.as_str())
-                .map(String::from);
+                .and_then(|v| {
+                    // String timestamps: use as-is
+                    if let Some(s) = v.as_str() {
+                        return Some(s.to_string());
+                    }
+                    // Numeric timestamps: epoch millis or secs → ISO string
+                    if let Some(n) = v.as_i64().or_else(|| v.as_f64().map(|f| f as i64)) {
+                        // Epoch millis (1e12..1e14 range)
+                        if (1_000_000_000_000..100_000_000_000_000).contains(&n) {
+                            let secs = n / 1000;
+                            let nsecs = ((n % 1000) * 1_000_000) as u32;
+                            if let Some(dt) = chrono::DateTime::from_timestamp(secs, nsecs) {
+                                return Some(dt.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string());
+                            }
+                        }
+                        // Epoch secs (1e9..1e10 range)
+                        if (1_000_000_000..10_000_000_000).contains(&n) {
+                            if let Some(dt) = chrono::DateTime::from_timestamp(n, 0) {
+                                return Some(dt.format("%Y-%m-%dT%H:%M:%SZ").to_string());
+                            }
+                        }
+                    }
+                    None
+                });
 
-            let message = value
+            // Docker JSON log detection: has "log" + "stream" keys, no "message"/"msg"
+            let is_docker_log = value.get("message").is_none()
+                && value.get("msg").is_none()
+                && value.get("log").is_some()
+                && value.get("stream").is_some();
+
+            let mut message = value
                 .get("message")
                 .or_else(|| value.get("msg"))
                 .or_else(|| value.get("log"))
@@ -270,6 +298,14 @@ fn parse_json_line(raw: &str) -> ParsedLine {
                 .map(|s| s.trim_end_matches('\n'))
                 .unwrap_or(trimmed)
                 .to_string();
+
+            // Docker logs: strip leading embedded timestamp from message
+            // when a wrapper timestamp already exists (avoids double timestamp display).
+            if is_docker_log && timestamp.is_some() {
+                if let Some(m) = PLAIN_TIMESTAMP_RE.find(&message) {
+                    message = message[m.end()..].trim_start().to_string();
+                }
+            }
 
             let pretty = serde_json::to_string_pretty(&value).ok();
 

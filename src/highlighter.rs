@@ -54,15 +54,29 @@ static QUOTED_STR_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#""[^"]{1,2
 static KEYWORD_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)\b(?:true|false|null|nil|none|undefined|NaN)\b").unwrap());
 
-// 12. Numbers (integers, floats, with optional units)
+// 12. Version numbers (dotted: 2.4.1, 10.15.7 — exactly 3 segments)
+static VERSION_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\b\d+\.\d+\.\d+\b").unwrap());
+
+// 13. Numbers (2+ digits, or decimal, or with unit suffix — skip tiny standalone digits)
 static NUMBER_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\b\d+(?:\.\d+)?(?:ns|µs|us|ms|s|m|h|d|KB|MB|GB|TB|%|B)?\b").unwrap()
+    Regex::new(r"\b(?:\d{2,}(?:\.\d+)?|\d+\.\d+|\d+(?:ns|µs|us|ms|s|m|h|d|KB|MB|GB|TB|%|B))\b")
+        .unwrap()
 });
 
-// 13. Inline dates (ISO-style dates not already captured as leading timestamps)
+// 14. Protocol versions (HTTP/1.1, HTTP/2 — prevent number highlighting)
+static PROTOCOL_VERSION_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"HTTP/\d+(?:\.\d+)?").unwrap());
+
+// 15. Inline dates (ISO-style dates not already captured as leading timestamps)
 static DATE_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\b\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+\-]\d{2}:?\d{2})?)?")
         .unwrap()
+});
+
+// 16. Level keywords (for plain format badge extraction)
+static HIGHLIGHT_LEVEL_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\b(TRACE|DEBUG|INFO|NOTICE|WARN(?:ING)?|ERROR|FATAL|CRITICAL|SEVERE|EMERGENCY|EMERG|ALERT|PANIC)\b").unwrap()
 });
 
 // ---------------------------------------------------------------------------
@@ -287,10 +301,28 @@ fn collect_all_regions(text: &str) -> Vec<MatchRegion> {
         &mut regions,
     );
 
-    // 12. Inline dates
+    // 12. Version numbers (2.4.1 etc. — higher priority than plain numbers)
+    collect_matches(
+        &VERSION_RE,
+        text,
+        number_style(),
+        TokenKind::Other,
+        &mut regions,
+    );
+
+    // 13. Protocol versions (HTTP/1.1 — claim region to prevent number highlighting)
+    collect_matches(
+        &PROTOCOL_VERSION_RE,
+        text,
+        Style::default(),
+        TokenKind::Other,
+        &mut regions,
+    );
+
+    // 14. Inline dates
     collect_matches(&DATE_RE, text, date_style(), TokenKind::Other, &mut regions);
 
-    // 13. Numbers (lowest priority — avoids coloring parts of IPs, UUIDs, etc.)
+    // 15. Numbers (lowest priority — avoids coloring parts of IPs, UUIDs, etc.)
     collect_matches(
         &NUMBER_RE,
         text,
@@ -402,8 +434,8 @@ fn level_style(level: Option<LogLevel>) -> Style {
         Some(LogLevel::Error) => Style::default().fg(Color::Red),
         Some(LogLevel::Warn) => Style::default().fg(Color::Yellow),
         Some(LogLevel::Info) => Style::default().fg(Color::Green),
-        Some(LogLevel::Debug) => Style::default().fg(Color::DarkGray),
-        Some(LogLevel::Trace) => Style::default().fg(Color::DarkGray),
+        Some(LogLevel::Debug) => Style::default().fg(Color::Indexed(249)), // light gray
+        Some(LogLevel::Trace) => Style::default().fg(Color::Indexed(243)), // medium gray
         None => Style::default(),
     }
 }
@@ -420,6 +452,26 @@ fn highlight_plain_line(parsed: &ParsedLine) -> Line<'_> {
             let ts_end = pos + ts.len();
             let (ts_part, rest) = parsed.raw.split_at(ts_end);
             let mut spans = vec![Span::styled(ts_part.to_string(), timestamp_style())];
+
+            // Extract level keyword as a bold badge if present
+            if parsed.level.is_some() {
+                if let Some(level_match) = HIGHLIGHT_LEVEL_RE.find(rest) {
+                    let before_level = &rest[..level_match.start()];
+                    let level_text = level_match.as_str();
+                    let after_level = &rest[level_match.end()..];
+
+                    if !before_level.is_empty() {
+                        spans.push(Span::styled(before_level.to_string(), style));
+                    }
+                    spans.push(Span::styled(
+                        level_text.to_string(),
+                        style.add_modifier(Modifier::BOLD),
+                    ));
+                    spans.extend(tokenize_with_patterns(after_level, style));
+                    return Line::from(spans);
+                }
+            }
+
             spans.extend(tokenize_with_patterns(rest, style));
             return Line::from(spans);
         }
