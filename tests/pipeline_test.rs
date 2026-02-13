@@ -719,6 +719,40 @@ fn test_version_number_single_span() {
     );
 }
 
+
+#[test]
+fn test_version_number_with_v_prefix() {
+    let result = pipeline_from_lines(&["Starting myapp v2.4.1"]);
+    let line = &result.highlighted[0];
+    assert!(
+        has_span(line, "v2.4.1", Color::Cyan),
+        "v-prefixed version should be a single cyan span. Spans: {}",
+        debug_spans(line)
+    );
+}
+
+#[test]
+fn test_decimal_with_unit_single_span() {
+    let result = pipeline_from_lines(&["response time 2.3s"]);
+    let line = &result.highlighted[0];
+    assert!(
+        has_span(line, "2.3s", Color::Cyan),
+        "Decimal with unit '2.3s' should be a single cyan span. Spans: {}",
+        debug_spans(line)
+    );
+}
+
+#[test]
+fn test_percent_attached_to_number() {
+    let result = pipeline_from_lines(&["cache hit rate 45%"]);
+    let line = &result.highlighted[0];
+    assert!(
+        has_span(line, "45%", Color::Cyan),
+        "Percent '45%' should be a single cyan span. Spans: {}",
+        debug_spans(line)
+    );
+}
+
 #[test]
 fn test_debug_line_distinguishable_from_timestamp() {
     // Debug level should use Indexed(249), not DarkGray like timestamps

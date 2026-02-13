@@ -56,11 +56,11 @@ static KEYWORD_RE: LazyLock<Regex> =
 
 // 12. Version numbers (dotted: 2.4.1, 10.15.7 — exactly 3 segments)
 static VERSION_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\b\d+\.\d+\.\d+\b").unwrap());
+    LazyLock::new(|| Regex::new(r"\bv?\d+\.\d+\.\d+\b").unwrap());
 
 // 13. Numbers (2+ digits, or decimal, or with unit suffix — skip tiny standalone digits)
 static NUMBER_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\b(?:\d{2,}(?:\.\d+)?|\d+\.\d+|\d+(?:ns|µs|us|ms|s|m|h|d|KB|MB|GB|TB|%|B))\b")
+    Regex::new(r"\b(?:\d+(?:\.\d+)?(?:ns|µs|us|ms|s|m|h|d|KB|MB|GB|TB|B)\b|\d+(?:\.\d+)?%|\d{2,}(?:\.\d+)?\b|\d+\.\d+\b)")
         .unwrap()
 });
 
