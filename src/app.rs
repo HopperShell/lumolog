@@ -510,6 +510,29 @@ impl App {
         self.min_level
     }
 
+    /// Returns counts of each log level present in the full (unfiltered) dataset.
+    /// Sorted by severity: Trace, Debug, Info, Warn, Error, Fatal. Only non-zero levels included.
+    pub fn level_counts(&self) -> Vec<(LogLevel, usize)> {
+        use std::collections::BTreeMap;
+        let mut counts: BTreeMap<LogLevel, usize> = BTreeMap::new();
+        for line in &self.parsed_lines {
+            if let Some(level) = line.level {
+                *counts.entry(level).or_insert(0) += 1;
+            }
+        }
+        counts.into_iter().collect()
+    }
+
+    /// Set min_level to the given level, or clear it if already set to that level.
+    pub fn set_min_level(&mut self, level: LogLevel) {
+        if self.min_level == Some(level) {
+            self.min_level = None;
+        } else {
+            self.min_level = Some(level);
+        }
+        self.recompute_filter();
+    }
+
     /// Raise the minimum level (hide more). Cycles: None → second-lowest → … → highest → None.
     pub fn cycle_level_up(&mut self) {
         if self.available_levels.len() <= 1 {

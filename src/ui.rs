@@ -7,7 +7,7 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use crate::app::{App, AppMode};
 use crate::highlighter::{
     TokenKind, apply_search_highlight, highlight_line, highlight_line_expanded,
-    tokenize_with_metadata,
+    level_badge_style, tokenize_with_metadata,
 };
 use crate::parser::LogFormat;
 use crate::parser::LogLevel;
@@ -27,11 +27,14 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     } else {
         1
     };
+    let level_counts = app.level_counts();
+    let stats_height: u16 = if level_counts.is_empty() { 0 } else { 1 };
 
-    let [sparkline_area, main_area, filter_area, status_area] = Layout::vertical([
+    let [sparkline_area, main_area, filter_area, stats_area, status_area] = Layout::vertical([
         Constraint::Length(sparkline_height),
         Constraint::Fill(1),
         Constraint::Length(filter_height),
+        Constraint::Length(stats_height),
         Constraint::Length(1),
     ])
     .areas(area);
@@ -172,6 +175,11 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         }
         let filter_bar = Paragraph::new(Line::from(spans));
         frame.render_widget(filter_bar, filter_area);
+    }
+
+    // Stats bar
+    if stats_height > 0 {
+        render_stats_bar(frame, app, stats_area, &level_counts);
     }
 
     // Status bar
@@ -555,6 +563,80 @@ fn render_sparkline(frame: &mut Frame, app: &App, area: Rect) {
     }
 }
 
+// --- Stats bar rendering ---
+
+fn render_stats_bar(
+    frame: &mut Frame,
+    app: &App,
+    area: Rect,
+    level_counts: &[(LogLevel, usize)],
+) {
+    let active_min = app.min_level();
+    let mut spans: Vec<Span> = Vec::new();
+    spans.push(Span::styled(" ", Style::default()));
+
+    for (i, (level, count)) in level_counts.iter().enumerate() {
+        if i > 0 {
+            spans.push(Span::styled(" ", Style::default()));
+        }
+        let label = format!(" {}:{} ", level.short_name(), count);
+        let mut style = level_badge_style(Some(*level));
+        if active_min == Some(*level) {
+            style = style.add_modifier(Modifier::UNDERLINED);
+        }
+        spans.push(Span::styled(label, style));
+    }
+
+    let bar = Paragraph::new(Line::from(spans));
+    frame.render_widget(bar, area);
+}
+
+/// Given a click coordinate, determine which level badge was clicked in the stats bar.
+pub fn stats_level_at_position(app: &App, column: u16, row: u16, area: Rect) -> Option<LogLevel> {
+    let level_counts = app.level_counts();
+    if level_counts.is_empty() {
+        return None;
+    }
+
+    let filter_height = if app.is_filter_mode() { 1 } else { 0 };
+    let sparkline_height: u16 = if !app.is_sparkline_visible() {
+        0
+    } else if app.mode() == AppMode::TimeRange {
+        2
+    } else {
+        1
+    };
+
+    let [_, _, _, stats_area, _] = Layout::vertical([
+        Constraint::Length(sparkline_height),
+        Constraint::Fill(1),
+        Constraint::Length(filter_height),
+        Constraint::Length(1), // stats bar exists since level_counts is non-empty
+        Constraint::Length(1),
+    ])
+    .areas(area);
+
+    if row != stats_area.y {
+        return None;
+    }
+
+    // Walk badge positions: 1 leading space, then for each badge " LVL:N " with 1 space separator
+    let mut col: u16 = stats_area.x + 1; // leading space
+    for (i, (level, count)) in level_counts.iter().enumerate() {
+        if i > 0 {
+            col += 1; // separator space
+        }
+        let label = format!(" {}:{} ", level.short_name(), count);
+        let label_len = label.len() as u16;
+        if column >= col && column < col + label_len {
+            return Some(*level);
+        }
+        col += label_len;
+    }
+
+    None
+}
+
 /// Map a TimeRange back to bucket indices in the sparkline.
 fn bucket_indices_for_time_range(
     sparkline: &timeindex::SparklineData,
@@ -595,10 +677,13 @@ pub fn sparkline_bucket_at_position(app: &App, column: u16, row: u16, area: Rect
         1
     };
 
-    let [sparkline_area, _, _, _] = Layout::vertical([
+    let stats_height: u16 = if app.level_counts().is_empty() { 0 } else { 1 };
+
+    let [sparkline_area, _, _, _, _] = Layout::vertical([
         Constraint::Length(sparkline_height),
         Constraint::Fill(1),
         Constraint::Length(if app.is_filter_mode() { 1 } else { 0 }),
+        Constraint::Length(stats_height),
         Constraint::Length(1),
     ])
     .areas(area);
@@ -643,10 +728,13 @@ pub fn token_at_position(
         1
     };
 
-    let [_, main_area, _, _] = Layout::vertical([
+    let stats_height: u16 = if app.level_counts().is_empty() { 0 } else { 1 };
+
+    let [_, main_area, _, _, _] = Layout::vertical([
         Constraint::Length(sparkline_height),
         Constraint::Fill(1),
         Constraint::Length(filter_height),
+        Constraint::Length(stats_height),
         Constraint::Length(1),
     ])
     .areas(area);

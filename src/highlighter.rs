@@ -442,7 +442,7 @@ fn level_style(level: Option<LogLevel>) -> Style {
     }
 }
 
-fn level_badge_style(level: Option<LogLevel>) -> Style {
+pub fn level_badge_style(level: Option<LogLevel>) -> Style {
     match level {
         Some(LogLevel::Fatal) => Style::default()
             .fg(Color::White)

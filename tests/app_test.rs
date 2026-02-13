@@ -1,5 +1,5 @@
 use lumolog::app::{App, AppMode};
-use lumolog::parser::LogFormat;
+use lumolog::parser::{LogFormat, LogLevel};
 
 #[test]
 fn test_scroll_down() {
@@ -153,4 +153,72 @@ fn test_append_lines_detects_format_when_starting_empty() {
     ]);
 
     assert_eq!(app.format(), LogFormat::Json);
+}
+
+// Level counts and set_min_level tests
+
+#[test]
+fn test_level_counts_empty_for_plain_text() {
+    let lines: Vec<String> = vec!["hello".into(), "world".into()];
+    let app = App::new(lines);
+    assert!(app.level_counts().is_empty());
+}
+
+#[test]
+fn test_level_counts_with_json_logs() {
+    let lines: Vec<String> = vec![
+        r#"{"level":"info","message":"a","timestamp":"2024-01-01T00:00:00Z"}"#.to_string(),
+        r#"{"level":"error","message":"b","timestamp":"2024-01-01T00:00:01Z"}"#.to_string(),
+        r#"{"level":"info","message":"c","timestamp":"2024-01-01T00:00:02Z"}"#.to_string(),
+        r#"{"level":"warn","message":"d","timestamp":"2024-01-01T00:00:03Z"}"#.to_string(),
+    ];
+    let app = App::new(lines);
+    let counts = app.level_counts();
+    // BTreeMap sorts by LogLevel order: Info, Warn, Error
+    assert_eq!(counts.len(), 3);
+    assert!(counts.contains(&(LogLevel::Info, 2)));
+    assert!(counts.contains(&(LogLevel::Warn, 1)));
+    assert!(counts.contains(&(LogLevel::Error, 1)));
+}
+
+#[test]
+fn test_set_min_level_toggles() {
+    let lines: Vec<String> = vec![
+        r#"{"level":"info","message":"a","timestamp":"2024-01-01T00:00:00Z"}"#.to_string(),
+        r#"{"level":"error","message":"b","timestamp":"2024-01-01T00:00:01Z"}"#.to_string(),
+        r#"{"level":"warn","message":"c","timestamp":"2024-01-01T00:00:02Z"}"#.to_string(),
+    ];
+    let mut app = App::new(lines);
+    assert_eq!(app.min_level(), None);
+    assert_eq!(app.total_lines(), 3);
+
+    // Set to Warn — should show Warn + Error (2 lines)
+    app.set_min_level(LogLevel::Warn);
+    assert_eq!(app.min_level(), Some(LogLevel::Warn));
+    assert_eq!(app.total_lines(), 2);
+
+    // Set to Warn again — should toggle off (clear), show all 3
+    app.set_min_level(LogLevel::Warn);
+    assert_eq!(app.min_level(), None);
+    assert_eq!(app.total_lines(), 3);
+}
+
+#[test]
+fn test_set_min_level_changes_level() {
+    let lines: Vec<String> = vec![
+        r#"{"level":"info","message":"a","timestamp":"2024-01-01T00:00:00Z"}"#.to_string(),
+        r#"{"level":"error","message":"b","timestamp":"2024-01-01T00:00:01Z"}"#.to_string(),
+        r#"{"level":"warn","message":"c","timestamp":"2024-01-01T00:00:02Z"}"#.to_string(),
+    ];
+    let mut app = App::new(lines);
+
+    // Set to Error — only Error shows
+    app.set_min_level(LogLevel::Error);
+    assert_eq!(app.min_level(), Some(LogLevel::Error));
+    assert_eq!(app.total_lines(), 1);
+
+    // Change to Warn — Warn + Error show
+    app.set_min_level(LogLevel::Warn);
+    assert_eq!(app.min_level(), Some(LogLevel::Warn));
+    assert_eq!(app.total_lines(), 2);
 }

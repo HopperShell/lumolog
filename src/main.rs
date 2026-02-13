@@ -407,6 +407,15 @@ fn run_event_loop(
                             }
                             _ => {}
                         }
+                    } else if let Some(level) = ui::stats_level_at_position(
+                        &app,
+                        mouse.column,
+                        mouse.row,
+                        terminal_area,
+                    ) {
+                        if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
+                            app.set_min_level(level);
+                        }
                     } else {
                         match mouse.kind {
                             MouseEventKind::Down(MouseButton::Left) => {

@@ -9,7 +9,7 @@ Polish the core UX before adding big features. These are low-medium effort and m
 - ~~**Fix Esc behavior**~~ — Esc always means "cancel/back" (clears similar → time range → text filter, in that order). Only `q` quits.
 - **Go-to-line** — no way to jump to a specific line number. Stack traces, error messages, and cross-referencing all need this. Add a `GoToLine` action in the command palette that opens a small input prompt. Touches: `command.rs`, `app.rs`, `ui.rs`, `main.rs`.
 - **Incremental search (n/N jump)** — filter mode hides non-matching lines entirely. Add a search mode where matches are highlighted in-place and `n`/`N` jumps to the next/previous match without hiding anything. Like `/pattern` then `n` in less/vim. Touches: `app.rs`, `main.rs`, `ui.rs`.
-- **Stats bar** — `parsed_lines` already has `level` on every entry. Scan once -> `HashMap<LogLevel, usize>` counts. Render as a compact colored row above the status bar: `E:42 W:130 I:1204`. Click a count to filter by that level (mouse integration already exists). Touches: `app.rs`, `ui.rs`.
+- ~~**Stats bar**~~ *(done)* — colored level count badges above the status bar. Click to set min_level filter.
 - **Contextual lines** — show N lines before/after each filter match (like `grep -C`). `filtered_indices` is already a `Vec<usize>` — expand each index into a range, merge overlapping ranges, render separators (`---`) between groups. Toggle with a key or `--context N` flag. Touches: `filter.rs`, `app.rs`, `ui.rs`.
 
 ## Medium Priority
