@@ -218,8 +218,8 @@ fn test_quoted_string_highlighted() {
     let has_quoted = styled
         .spans
         .iter()
-        .any(|span| span.style.fg == Some(Color::Yellow) && span.content.contains("config.yaml"));
-    assert!(has_quoted, "Quoted strings should be highlighted in yellow");
+        .any(|span| span.style.fg == Some(Color::Indexed(222)) && span.content.contains("config.yaml"));
+    assert!(has_quoted, "Quoted strings should be highlighted in gold");
 }
 
 #[test]

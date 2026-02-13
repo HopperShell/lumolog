@@ -126,7 +126,7 @@ fn key_value_key_style() -> Style {
 }
 
 fn quoted_str_style() -> Style {
-    Style::default().fg(Color::Yellow)
+    Style::default().fg(Color::Indexed(222))
 }
 
 fn keyword_style() -> Style {

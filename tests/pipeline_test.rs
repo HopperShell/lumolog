@@ -688,14 +688,14 @@ fn test_mixed_path_cyan() {
 #[test]
 fn test_mixed_quoted_string_yellow() {
     let result = pipeline("testdata/sample_mixed.log");
-    // Line 5: quoted "Connection refused" should be yellow
+    // Line 5: quoted "Connection refused" should be gold
     assert!(
         has_span(
             &result.highlighted[5],
             "Connection refused",
-            Color::Yellow
+            Color::Indexed(222)
         ),
-        "Line 5: quoted string should be yellow. Spans: {}",
+        "Line 5: quoted string should be gold. Spans: {}",
         debug_spans(&result.highlighted[5])
     );
 }
@@ -1222,9 +1222,9 @@ fn test_stress_quoted_string() {
         has_span(
             &result.highlighted[13],
             "Connection reset by peer",
-            Color::Yellow
+            Color::Indexed(222)
         ),
-        "Quoted string should be yellow. Spans: {}",
+        "Quoted string should be gold. Spans: {}",
         debug_spans(&result.highlighted[13])
     );
 }
@@ -1427,6 +1427,17 @@ fn test_json_info_badge_has_green_background() {
     assert!(
         has_span_with_bg(line, "INF", Color::Green),
         "Info badge should have green background. Spans: {}",
+        debug_spans(line)
+    );
+}
+
+#[test]
+fn test_quoted_string_is_gold_not_yellow() {
+    let result = pipeline_from_lines(&[r#"2024-01-15 WARN got "Connection refused" from server"#]);
+    let line = &result.highlighted[0];
+    assert!(
+        has_span(line, "Connection refused", Color::Indexed(222)),
+        "Quoted string should be Indexed(222) gold, not Yellow. Spans: {}",
         debug_spans(line)
     );
 }
