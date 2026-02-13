@@ -7,7 +7,6 @@ Core differentiator vs tailspin: tailspin makes text pretty. Lumolog *understand
 Polish the core UX before adding big features. These are low-medium effort and make the tool feel complete.
 
 - ~~**Fix Esc behavior**~~ — Esc always means "cancel/back" (clears similar → time range → text filter, in that order). Only `q` quits.
-- **Go-to-line** — no way to jump to a specific line number. Stack traces, error messages, and cross-referencing all need this. Add a `GoToLine` action in the command palette that opens a small input prompt. Touches: `command.rs`, `app.rs`, `ui.rs`, `main.rs`.
 - **Incremental search (n/N jump)** — filter mode hides non-matching lines entirely. Add a search mode where matches are highlighted in-place and `n`/`N` jumps to the next/previous match without hiding anything. Like `/pattern` then `n` in less/vim. Touches: `app.rs`, `main.rs`, `ui.rs`.
 - ~~**Stats bar**~~ *(done)* — colored level count badges above the status bar. Click to set min_level filter.
 - **Contextual lines** — show N lines before/after each filter match (like `grep -C`). `filtered_indices` is already a `Vec<usize>` — expand each index into a range, merge overlapping ranges, render separators (`---`) between groups. Toggle with a key or `--context N` flag. Touches: `filter.rs`, `app.rs`, `ui.rs`.
