@@ -133,6 +133,13 @@ pub fn has_span_without_color(line: &Line<'_>, text: &str, color: Color) -> bool
         .any(|s| s.content.contains(text) && s.style.fg != Some(color))
 }
 
+/// Check if a highlighted line contains a span with the given text and background color.
+pub fn has_span_with_bg(line: &Line<'_>, text: &str, bg: Color) -> bool {
+    line.spans
+        .iter()
+        .any(|s| s.content.contains(text) && s.style.bg == Some(bg))
+}
+
 /// Dump a highlighted line as a human-readable string showing each span's text and color.
 /// Useful for debugging test failures.
 pub fn debug_spans(line: &Line<'_>) -> String {

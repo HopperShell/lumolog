@@ -442,6 +442,36 @@ fn level_style(level: Option<LogLevel>) -> Style {
     }
 }
 
+fn level_badge_style(level: Option<LogLevel>) -> Style {
+    match level {
+        Some(LogLevel::Fatal) => Style::default()
+            .fg(Color::White)
+            .bg(Color::Red)
+            .add_modifier(Modifier::BOLD),
+        Some(LogLevel::Error) => Style::default()
+            .fg(Color::White)
+            .bg(Color::Red)
+            .add_modifier(Modifier::BOLD),
+        Some(LogLevel::Warn) => Style::default()
+            .fg(Color::Black)
+            .bg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+        Some(LogLevel::Info) => Style::default()
+            .fg(Color::Black)
+            .bg(Color::Green)
+            .add_modifier(Modifier::BOLD),
+        Some(LogLevel::Debug) => Style::default()
+            .fg(Color::Black)
+            .bg(Color::Indexed(249))
+            .add_modifier(Modifier::BOLD),
+        Some(LogLevel::Trace) => Style::default()
+            .fg(Color::Black)
+            .bg(Color::Indexed(243))
+            .add_modifier(Modifier::BOLD),
+        None => Style::default().add_modifier(Modifier::BOLD),
+    }
+}
+
 fn timestamp_style() -> Style {
     Style::default().fg(Color::DarkGray)
 }
@@ -497,9 +527,10 @@ fn highlight_json_line(parsed: &ParsedLine) -> Line<'_> {
     let mut spans = Vec::new();
 
     spans.push(Span::styled(
-        format!("[{}] ", level_str),
-        style.add_modifier(Modifier::BOLD),
+        format!("[{}]", level_str),
+        level_badge_style(parsed.level),
     ));
+    spans.push(Span::styled(" ".to_string(), Style::default()));
 
     if let Some(ref ts) = parsed.timestamp {
         spans.push(Span::styled(format!("{} ", ts), timestamp_style()));
@@ -656,10 +687,11 @@ pub fn highlight_line_expanded(parsed: &ParsedLine, pretty: bool) -> Vec<Line<'_
 
             let mut lines = Vec::new();
             // First line: level badge + separator
-            lines.push(Line::from(Span::styled(
-                format!("--- [{}] ", level_str),
-                style.add_modifier(Modifier::BOLD),
-            )));
+            lines.push(Line::from(vec![
+                Span::styled("--- ".to_string(), style.add_modifier(Modifier::BOLD)),
+                Span::styled(format!("[{}]", level_str), level_badge_style(parsed.level)),
+                Span::styled(" ".to_string(), Style::default()),
+            ]));
             // Pretty-printed JSON lines
             for json_line in pretty_json.lines() {
                 lines.push(Line::from(Span::styled(format!("  {}", json_line), style)));

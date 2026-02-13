@@ -1396,6 +1396,41 @@ fn test_pointer_is_orange() {
     );
 }
 
+// --- Level badge backgrounds ---
+
+#[test]
+fn test_json_error_badge_has_red_background() {
+    let result = pipeline_from_lines(&[r#"{"level":"error","msg":"fail","ts":"2024-01-15T00:00:00Z"}"#]);
+    let line = &result.highlighted[0];
+    assert!(
+        has_span_with_bg(line, "ERR", Color::Red),
+        "Error badge should have red background. Spans: {}",
+        debug_spans(line)
+    );
+}
+
+#[test]
+fn test_json_warn_badge_has_yellow_background() {
+    let result = pipeline_from_lines(&[r#"{"level":"warn","msg":"slow","ts":"2024-01-15T00:00:00Z"}"#]);
+    let line = &result.highlighted[0];
+    assert!(
+        has_span_with_bg(line, "WRN", Color::Yellow),
+        "Warn badge should have yellow background. Spans: {}",
+        debug_spans(line)
+    );
+}
+
+#[test]
+fn test_json_info_badge_has_green_background() {
+    let result = pipeline_from_lines(&[r#"{"level":"info","msg":"ok","ts":"2024-01-15T00:00:00Z"}"#]);
+    let line = &result.highlighted[0];
+    assert!(
+        has_span_with_bg(line, "INF", Color::Green),
+        "Info badge should have green background. Spans: {}",
+        debug_spans(line)
+    );
+}
+
 // ===========================================================================
 // pipeline_from_lines: ad-hoc tests without files
 // ===========================================================================
