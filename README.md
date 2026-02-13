@@ -20,7 +20,7 @@ Lumolog is a TUI log viewer built for developers, SREs, and security teams. Poin
 
 Most log viewers just make text pretty. Lumolog *understands* your logs — it knows what's an IP address, what's a timestamp, what's an error level, and lets you act on all of it.
 
-<video src="assets/search.mov" width="100%" autoplay loop muted></video>
+![Lumolog in action — filtering logs with live match count](assets/search.mov)
 
 ## Quickstart
 
@@ -65,7 +65,7 @@ Press `/` to open the filter bar. Type a substring and matching lines are shown 
 
 The filter bar shows a live match count as you type: `/ error  (142 matches)` or `/ conref  (~38 fuzzy)`.
 
-<video src="assets/search.mov" width="100%" autoplay loop muted></video>
+![Search and filter with live match count](assets/search.mov)
 
 ### Level Filtering & Stats Bar
 
@@ -83,7 +83,7 @@ Quick presets: `1` for last 5 minutes, `2` for 15 minutes, `3` for 1 hour, `4` f
 
 Time filtering composes with all other filters — combine a time window with a level filter and text search to isolate exactly the incident you're investigating.
 
-<video src="assets/timerange.mov" width="100%" autoplay loop muted></video>
+![Click and drag the sparkline to select a time range](assets/timerange.mov)
 
 ### Click-to-Action
 
@@ -93,7 +93,7 @@ Click any highlighted token to open a context menu with relevant actions:
 - **URLs** — filter by value or open in browser
 - **UUIDs, paths, HTTP methods, key=value pairs** — filter by value
 
-<video src="assets/abuseipdb.mov" width="100%" autoplay loop muted></video>
+![Click an IP to filter, click again to look up on AbuseIPDB](assets/abuseipdb.mov)
 
 ### JSON Pretty-Print
 
@@ -120,11 +120,11 @@ Press `Enter` to activate cursor mode. A highlighted bar tracks your position as
 
 Similar-line filtering is powerful for noisy logs — it computes a structural template by replacing IPs, numbers, UUIDs, URLs, and timestamps with wildcards, then shows all lines matching that shape.
 
-<video src="assets/cursor-mode.mov" width="100%" autoplay loop muted></video>
+![Cursor mode — navigate and yank a single line](assets/cursor-mode.mov)
 
 Use `Y` from any mode to yank all currently filtered lines at once — combine a text filter or level filter with `Y` to extract exactly the lines you need.
 
-<video src="assets/big-yank.mov" width="100%" autoplay loop muted></video>
+![Filter then Shift+Y to yank all matching lines](assets/big-yank.mov)
 
 ### Command Palette
 
