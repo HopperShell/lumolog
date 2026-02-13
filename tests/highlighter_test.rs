@@ -172,10 +172,9 @@ fn test_file_path_highlighted() {
         template: String::new(),
     };
     let styled = highlight_line(&parsed);
-    let has_cyan_path = styled
-        .spans
-        .iter()
-        .any(|span| span.style.fg == Some(Color::Indexed(108)) && span.content.contains("/etc/app"));
+    let has_cyan_path = styled.spans.iter().any(|span| {
+        span.style.fg == Some(Color::Indexed(108)) && span.content.contains("/etc/app")
+    });
     assert!(has_cyan_path, "File paths should be highlighted in cyan");
 }
 
@@ -215,10 +214,9 @@ fn test_quoted_string_highlighted() {
         template: String::new(),
     };
     let styled = highlight_line(&parsed);
-    let has_quoted = styled
-        .spans
-        .iter()
-        .any(|span| span.style.fg == Some(Color::Indexed(222)) && span.content.contains("config.yaml"));
+    let has_quoted = styled.spans.iter().any(|span| {
+        span.style.fg == Some(Color::Indexed(222)) && span.content.contains("config.yaml")
+    });
     assert!(has_quoted, "Quoted strings should be highlighted in gold");
 }
 

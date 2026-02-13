@@ -199,10 +199,10 @@ impl App {
 
     /// How many display lines does the entry at `parsed_lines[idx]` produce?
     fn display_line_count(&self, idx: usize) -> usize {
-        if self.json_pretty {
-            if let Some(ref pj) = self.parsed_lines[idx].pretty_json {
-                return pj.lines().count() + 1; // header + JSON body lines
-            }
+        if self.json_pretty
+            && let Some(ref pj) = self.parsed_lines[idx].pretty_json
+        {
+            return pj.lines().count() + 1; // header + JSON body lines
         }
         1
     }
@@ -620,10 +620,10 @@ impl App {
     }
 
     pub fn menu_down(&mut self) {
-        if let Some(ref mut menu) = self.context_menu {
-            if menu.selected + 1 < menu.items.len() {
-                menu.selected += 1;
-            }
+        if let Some(ref mut menu) = self.context_menu
+            && menu.selected + 1 < menu.items.len()
+        {
+            menu.selected += 1;
         }
     }
 
@@ -844,22 +844,22 @@ impl App {
             }
         };
 
-        if let Some(sparkline) = &self.sparkline_data {
-            if let Some(range) = bucket_range_to_time_range(sparkline, start_bucket, end_bucket) {
-                self.time_range = Some(range);
-                self.recompute_filter();
-            }
+        if let Some(sparkline) = &self.sparkline_data
+            && let Some(range) = bucket_range_to_time_range(sparkline, start_bucket, end_bucket)
+        {
+            self.time_range = Some(range);
+            self.recompute_filter();
         }
         self.exit_time_mode();
     }
 
     pub fn time_preset(&mut self, minutes: i64) {
-        if let Some(index) = &self.time_index {
-            if let Some(max_ts) = index.max_ts {
-                let start = max_ts - chrono::Duration::minutes(minutes);
-                self.time_range = Some(TimeRange { start, end: max_ts });
-                self.recompute_filter();
-            }
+        if let Some(index) = &self.time_index
+            && let Some(max_ts) = index.max_ts
+        {
+            let start = max_ts - chrono::Duration::minutes(minutes);
+            self.time_range = Some(TimeRange { start, end: max_ts });
+            self.recompute_filter();
         }
         self.exit_time_mode();
     }
@@ -886,10 +886,10 @@ impl App {
     }
 
     pub fn time_mouse_drag(&mut self, bucket: usize) {
-        if let Some(state) = &mut self.time_mode {
-            if state.dragging {
-                state.cursor_bucket = bucket;
-            }
+        if let Some(state) = &mut self.time_mode
+            && state.dragging
+        {
+            state.cursor_bucket = bucket;
         }
     }
 

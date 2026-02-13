@@ -96,7 +96,12 @@ fn test_json_pipeline_levels() {
 #[test]
 fn test_json_pipeline_colors() {
     let result = pipeline("testdata/sample_json.log");
-    for (i, (parsed, line)) in result.parsed.iter().zip(result.highlighted.iter()).enumerate() {
+    for (i, (parsed, line)) in result
+        .parsed
+        .iter()
+        .zip(result.highlighted.iter())
+        .enumerate()
+    {
         assert_level_color(parsed, line, i);
     }
 }
@@ -181,7 +186,12 @@ fn test_plain_pipeline_levels() {
 #[test]
 fn test_plain_pipeline_colors() {
     let result = pipeline("testdata/sample_plain.log");
-    for (i, (parsed, line)) in result.parsed.iter().zip(result.highlighted.iter()).enumerate() {
+    for (i, (parsed, line)) in result
+        .parsed
+        .iter()
+        .zip(result.highlighted.iter())
+        .enumerate()
+    {
         assert_level_color(parsed, line, i);
     }
 }
@@ -205,7 +215,11 @@ fn test_plain_pattern_highlighting() {
 
     // Line 1: "/etc/app/config.yaml" path should be cyan
     assert!(
-        has_span(&result.highlighted[1], "/etc/app/config.yaml", Color::Indexed(108)),
+        has_span(
+            &result.highlighted[1],
+            "/etc/app/config.yaml",
+            Color::Indexed(108)
+        ),
         "Line 1: file path should be Indexed(108) muted green. Spans: {}",
         debug_spans(&result.highlighted[1])
     );
@@ -275,7 +289,12 @@ fn test_logfmt_pipeline_levels() {
 #[test]
 fn test_logfmt_pipeline_colors() {
     let result = pipeline("testdata/sample_logfmt.log");
-    for (i, (parsed, line)) in result.parsed.iter().zip(result.highlighted.iter()).enumerate() {
+    for (i, (parsed, line)) in result
+        .parsed
+        .iter()
+        .zip(result.highlighted.iter())
+        .enumerate()
+    {
         assert_level_color(parsed, line, i);
     }
 }
@@ -317,7 +336,12 @@ fn test_klog_pipeline_levels() {
 #[test]
 fn test_klog_pipeline_colors() {
     let result = pipeline("testdata/sample_klog.log");
-    for (i, (parsed, line)) in result.parsed.iter().zip(result.highlighted.iter()).enumerate() {
+    for (i, (parsed, line)) in result
+        .parsed
+        .iter()
+        .zip(result.highlighted.iter())
+        .enumerate()
+    {
         assert_level_color(parsed, line, i);
     }
 }
@@ -349,7 +373,12 @@ fn test_log4j_pipeline_levels() {
 #[test]
 fn test_log4j_pipeline_colors() {
     let result = pipeline("testdata/sample_log4j.log");
-    for (i, (parsed, line)) in result.parsed.iter().zip(result.highlighted.iter()).enumerate() {
+    for (i, (parsed, line)) in result
+        .parsed
+        .iter()
+        .zip(result.highlighted.iter())
+        .enumerate()
+    {
         assert_level_color(parsed, line, i);
     }
 }
@@ -399,7 +428,12 @@ fn test_python_pipeline_levels() {
 #[test]
 fn test_python_pipeline_colors() {
     let result = pipeline("testdata/sample_python.log");
-    for (i, (parsed, line)) in result.parsed.iter().zip(result.highlighted.iter()).enumerate() {
+    for (i, (parsed, line)) in result
+        .parsed
+        .iter()
+        .zip(result.highlighted.iter())
+        .enumerate()
+    {
         assert_level_color(parsed, line, i);
     }
 }
@@ -441,7 +475,12 @@ fn test_apache_pipeline_levels() {
 #[test]
 fn test_apache_pipeline_colors() {
     let result = pipeline("testdata/sample_apache.log");
-    for (i, (parsed, line)) in result.parsed.iter().zip(result.highlighted.iter()).enumerate() {
+    for (i, (parsed, line)) in result
+        .parsed
+        .iter()
+        .zip(result.highlighted.iter())
+        .enumerate()
+    {
         assert_level_color(parsed, line, i);
     }
 }
@@ -474,7 +513,12 @@ fn test_docker_pipeline_levels() {
 #[test]
 fn test_docker_pipeline_colors() {
     let result = pipeline("testdata/sample_docker.log");
-    for (i, (parsed, line)) in result.parsed.iter().zip(result.highlighted.iter()).enumerate() {
+    for (i, (parsed, line)) in result
+        .parsed
+        .iter()
+        .zip(result.highlighted.iter())
+        .enumerate()
+    {
         assert_level_color(parsed, line, i);
     }
 }
@@ -539,7 +583,12 @@ fn test_pino_pipeline_levels() {
 #[test]
 fn test_pino_pipeline_colors() {
     let result = pipeline("testdata/sample_pino.log");
-    for (i, (parsed, line)) in result.parsed.iter().zip(result.highlighted.iter()).enumerate() {
+    for (i, (parsed, line)) in result
+        .parsed
+        .iter()
+        .zip(result.highlighted.iter())
+        .enumerate()
+    {
         assert_level_color(parsed, line, i);
     }
 }
@@ -615,7 +664,12 @@ fn test_mixed_pipeline_levels() {
 #[test]
 fn test_mixed_pipeline_colors() {
     let result = pipeline("testdata/sample_mixed.log");
-    for (i, (parsed, line)) in result.parsed.iter().zip(result.highlighted.iter()).enumerate() {
+    for (i, (parsed, line)) in result
+        .parsed
+        .iter()
+        .zip(result.highlighted.iter())
+        .enumerate()
+    {
         assert_level_color(parsed, line, i);
     }
 }
@@ -679,7 +733,11 @@ fn test_mixed_path_cyan() {
     let result = pipeline("testdata/sample_mixed.log");
     // Line 1: "/etc/app/config.yaml" should be cyan
     assert!(
-        has_span(&result.highlighted[1], "/etc/app/config.yaml", Color::Indexed(108)),
+        has_span(
+            &result.highlighted[1],
+            "/etc/app/config.yaml",
+            Color::Indexed(108)
+        ),
         "Line 1: file path should be Indexed(108) muted green. Spans: {}",
         debug_spans(&result.highlighted[1])
     );
@@ -710,7 +768,10 @@ fn test_version_number_single_span() {
     let result = pipeline("testdata/sample_mixed.log");
     // Line 0: "version 2.4.1"
     let text = line_text(&result.highlighted[0]);
-    assert!(text.contains("2.4.1"), "Line 0 should contain version string");
+    assert!(
+        text.contains("2.4.1"),
+        "Line 0 should contain version string"
+    );
     // The version should be a single span colored Cyan (number_style)
     assert!(
         has_span(&result.highlighted[0], "2.4.1", Color::Cyan),
@@ -718,7 +779,6 @@ fn test_version_number_single_span() {
         debug_spans(&result.highlighted[0])
     );
 }
-
 
 #[test]
 fn test_version_number_with_v_prefix() {
@@ -842,9 +902,10 @@ fn test_http_protocol_version_not_number_highlighted() {
     let text = line_text(line);
     assert!(text.contains("HTTP/1.1"), "Should contain HTTP/1.1");
     // "1.1" should NOT be in a Cyan span by itself
-    let has_cyan_11 = line.spans.iter().any(|s| {
-        s.content.as_ref() == "1.1" && s.style.fg == Some(Color::Cyan)
-    });
+    let has_cyan_11 = line
+        .spans
+        .iter()
+        .any(|s| s.content.as_ref() == "1.1" && s.style.fg == Some(Color::Cyan));
     assert!(
         !has_cyan_11,
         "HTTP/1.1 version should not have '1.1' as separate cyan span. Spans: {}",
@@ -890,17 +951,17 @@ fn test_stress_detect_plain() {
 fn test_stress_all_levels_detected() {
     let result = pipeline("testdata/sample_stress.log");
     let expected = vec![
-        (0, Some(LogLevel::Info)),    // INFO Application v3.12.1
-        (1, Some(LogLevel::Debug)),   // DEBUG Loaded 42 config keys
-        (2, Some(LogLevel::Info)),    // INFO Connected to postgres
-        (3, Some(LogLevel::Warn)),    // WARN Memory usage at 87%
-        (4, Some(LogLevel::Error)),   // ERROR Failed to reach upstream
-        (5, Some(LogLevel::Debug)),   // DEBUG Request id=...
-        (6, Some(LogLevel::Info)),    // INFO GET /api/v2/users
-        (7, Some(LogLevel::Warn)),    // WARN Certificate expires
-        (8, Some(LogLevel::Error)),   // ERROR Null pointer
-        (15, Some(LogLevel::Fatal)),  // FATAL Unrecoverable error
-        (27, Some(LogLevel::Trace)),  // TRACE Entering function
+        (0, Some(LogLevel::Info)),   // INFO Application v3.12.1
+        (1, Some(LogLevel::Debug)),  // DEBUG Loaded 42 config keys
+        (2, Some(LogLevel::Info)),   // INFO Connected to postgres
+        (3, Some(LogLevel::Warn)),   // WARN Memory usage at 87%
+        (4, Some(LogLevel::Error)),  // ERROR Failed to reach upstream
+        (5, Some(LogLevel::Debug)),  // DEBUG Request id=...
+        (6, Some(LogLevel::Info)),   // INFO GET /api/v2/users
+        (7, Some(LogLevel::Warn)),   // WARN Certificate expires
+        (8, Some(LogLevel::Error)),  // ERROR Null pointer
+        (15, Some(LogLevel::Fatal)), // FATAL Unrecoverable error
+        (27, Some(LogLevel::Trace)), // TRACE Entering function
     ];
     for (i, exp) in expected {
         assert_level(&result.parsed[i], exp, i);
@@ -910,7 +971,12 @@ fn test_stress_all_levels_detected() {
 #[test]
 fn test_stress_all_levels_colored() {
     let result = pipeline("testdata/sample_stress.log");
-    for (i, (parsed, line)) in result.parsed.iter().zip(result.highlighted.iter()).enumerate() {
+    for (i, (parsed, line)) in result
+        .parsed
+        .iter()
+        .zip(result.highlighted.iter())
+        .enumerate()
+    {
         assert_level_color(parsed, line, i);
     }
 }
@@ -1115,7 +1181,11 @@ fn test_stress_unix_path() {
     let result = pipeline("testdata/sample_stress.log");
     // Line 1: "/etc/myapp/config.yaml"
     assert!(
-        has_span(&result.highlighted[1], "/etc/myapp/config.yaml", Color::Indexed(108)),
+        has_span(
+            &result.highlighted[1],
+            "/etc/myapp/config.yaml",
+            Color::Indexed(108)
+        ),
         "Unix path should be Indexed(108) muted green. Spans: {}",
         debug_spans(&result.highlighted[1])
     );
@@ -1126,7 +1196,11 @@ fn test_stress_relative_path() {
     let result = pipeline("testdata/sample_stress.log");
     // Line 17: "./cmd/server/main.go"
     assert!(
-        has_span(&result.highlighted[17], "./cmd/server/main.go", Color::Indexed(108)),
+        has_span(
+            &result.highlighted[17],
+            "./cmd/server/main.go",
+            Color::Indexed(108)
+        ),
         "Relative path should be Indexed(108) muted green. Spans: {}",
         debug_spans(&result.highlighted[17])
     );
@@ -1291,7 +1365,11 @@ fn test_stress_inline_date() {
     let result = pipeline("testdata/sample_stress.log");
     // Line 23: "2024-06-15T10:30:00Z" inline date (not the leading timestamp)
     assert!(
-        has_span(&result.highlighted[23], "2024-06-15T10:30:00Z", Color::DarkGray),
+        has_span(
+            &result.highlighted[23],
+            "2024-06-15T10:30:00Z",
+            Color::DarkGray
+        ),
         "Inline date should be dark gray. Spans: {}",
         debug_spans(&result.highlighted[23])
     );
@@ -1368,7 +1446,12 @@ fn test_ip_is_cyan_bold() {
     let result = pipeline_from_lines(&["2024-01-15 INFO connected to 192.168.1.100"]);
     let line = &result.highlighted[0];
     assert!(
-        has_span_with_modifier(line, "192.168.1.100", Color::Cyan, ratatui::style::Modifier::BOLD),
+        has_span_with_modifier(
+            line,
+            "192.168.1.100",
+            Color::Cyan,
+            ratatui::style::Modifier::BOLD
+        ),
         "IP should be cyan+bold. Spans: {}",
         debug_spans(line)
     );
@@ -1400,7 +1483,8 @@ fn test_pointer_is_orange() {
 
 #[test]
 fn test_json_error_badge_has_red_background() {
-    let result = pipeline_from_lines(&[r#"{"level":"error","msg":"fail","ts":"2024-01-15T00:00:00Z"}"#]);
+    let result =
+        pipeline_from_lines(&[r#"{"level":"error","msg":"fail","ts":"2024-01-15T00:00:00Z"}"#]);
     let line = &result.highlighted[0];
     assert!(
         has_span_with_bg(line, "ERR", Color::Red),
@@ -1411,7 +1495,8 @@ fn test_json_error_badge_has_red_background() {
 
 #[test]
 fn test_json_warn_badge_has_yellow_background() {
-    let result = pipeline_from_lines(&[r#"{"level":"warn","msg":"slow","ts":"2024-01-15T00:00:00Z"}"#]);
+    let result =
+        pipeline_from_lines(&[r#"{"level":"warn","msg":"slow","ts":"2024-01-15T00:00:00Z"}"#]);
     let line = &result.highlighted[0];
     assert!(
         has_span_with_bg(line, "WRN", Color::Yellow),
@@ -1422,7 +1507,8 @@ fn test_json_warn_badge_has_yellow_background() {
 
 #[test]
 fn test_json_info_badge_has_green_background() {
-    let result = pipeline_from_lines(&[r#"{"level":"info","msg":"ok","ts":"2024-01-15T00:00:00Z"}"#]);
+    let result =
+        pipeline_from_lines(&[r#"{"level":"info","msg":"ok","ts":"2024-01-15T00:00:00Z"}"#]);
     let line = &result.highlighted[0];
     assert!(
         has_span_with_bg(line, "INF", Color::Green),

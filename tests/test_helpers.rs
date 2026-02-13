@@ -6,7 +6,7 @@
 #![allow(dead_code)]
 
 use lumolog::highlighter::highlight_line;
-use lumolog::parser::{detect_format, parse_line, LogFormat, LogLevel, ParsedLine};
+use lumolog::parser::{LogFormat, LogLevel, ParsedLine, detect_format, parse_line};
 use lumolog::source::FileSource;
 use ratatui::style::{Color, Modifier};
 use ratatui::text::{Line, Span};
@@ -108,17 +108,18 @@ pub fn has_color(line: &Line<'_>, color: Color) -> bool {
 
 /// Get all unique foreground colors used in a line.
 pub fn colors_in_line(line: &Line<'_>) -> Vec<Color> {
-    let mut colors: Vec<Color> = line
-        .spans
-        .iter()
-        .filter_map(|s| s.style.fg)
-        .collect();
+    let mut colors: Vec<Color> = line.spans.iter().filter_map(|s| s.style.fg).collect();
     colors.dedup();
     colors
 }
 
 /// Check if a highlighted line contains a span with the given text, foreground color, and modifier.
-pub fn has_span_with_modifier(line: &Line<'_>, text: &str, color: Color, modifier: Modifier) -> bool {
+pub fn has_span_with_modifier(
+    line: &Line<'_>,
+    text: &str,
+    color: Color,
+    modifier: Modifier,
+) -> bool {
     line.spans.iter().any(|s| {
         s.content.contains(text)
             && s.style.fg == Some(color)

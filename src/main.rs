@@ -75,11 +75,11 @@ fn dispatch_action(action: command::Action, app: &mut App) {
         ToggleFollowPause => app.toggle_follow_pause(),
         OpenCommandPalette => app.open_palette(),
         YankLine => {
-            if let Some(text) = app.cursor_line_raw() {
-                if let Ok(mut clipboard) = arboard::Clipboard::new() {
-                    let _ = clipboard.set_text(text.to_string());
-                    app.set_yank_flash();
-                }
+            if let Some(text) = app.cursor_line_raw()
+                && let Ok(mut clipboard) = arboard::Clipboard::new()
+            {
+                let _ = clipboard.set_text(text.to_string());
+                app.set_yank_flash();
             }
         }
         YankAllFiltered => {
@@ -323,9 +323,7 @@ fn run_event_loop(
                         match key.code {
                             KeyCode::Down | KeyCode::Char('j') => app.cursor_down(1),
                             KeyCode::Up | KeyCode::Char('k') => app.cursor_up(1),
-                            KeyCode::Char('y') => {
-                                dispatch_action(command::Action::YankLine, app)
-                            }
+                            KeyCode::Char('y') => dispatch_action(command::Action::YankLine, app),
                             KeyCode::Char('Y') => {
                                 dispatch_action(command::Action::YankAllFiltered, app)
                             }
@@ -390,7 +388,7 @@ fn run_event_loop(
                 Event::Mouse(mouse) => {
                     // Check sparkline clicks first
                     if let Some(bucket) = ui::sparkline_bucket_at_position(
-                        &app,
+                        app,
                         mouse.column,
                         mouse.row,
                         terminal_area,
@@ -407,33 +405,27 @@ fn run_event_loop(
                             }
                             _ => {}
                         }
-                    } else if let Some(level) = ui::stats_level_at_position(
-                        &app,
-                        mouse.column,
-                        mouse.row,
-                        terminal_area,
-                    ) {
-                        if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
-                            app.set_min_level(level);
-                        }
+                    } else if let Some(level) =
+                        ui::stats_level_at_position(app, mouse.column, mouse.row, terminal_area)
+                        && mouse.kind == MouseEventKind::Down(MouseButton::Left)
+                    {
+                        app.set_min_level(level);
                     } else {
                         match mouse.kind {
                             MouseEventKind::Down(MouseButton::Left) => {
                                 if app.mode() == AppMode::ContextMenu {
                                     if let Some(index) = ui::menu_item_at_position(
-                                        &app,
+                                        app,
                                         mouse.column,
                                         mouse.row,
                                         terminal_area,
-                                    ) {
-                                        if let Some((action, value)) = app.execute_menu_item(index)
-                                        {
-                                            execute_action(action, value, app);
-                                        }
+                                    ) && let Some((action, value)) = app.execute_menu_item(index)
+                                    {
+                                        execute_action(action, value, app);
                                     } else {
                                         app.close_context_menu();
                                         if let Some((kind, value)) = ui::token_at_position(
-                                            &app,
+                                            app,
                                             mouse.column,
                                             mouse.row,
                                             terminal_area,
@@ -445,43 +437,39 @@ fn run_event_loop(
                                             );
                                         }
                                     }
-                                } else if app.mode() != AppMode::Cursor {
-                                    if let Some((kind, value)) = ui::token_at_position(
-                                        &app,
+                                } else if app.mode() != AppMode::Cursor
+                                    && let Some((kind, value)) = ui::token_at_position(
+                                        app,
                                         mouse.column,
                                         mouse.row,
                                         terminal_area,
-                                    ) {
-                                        app.open_context_menu(
-                                            value,
-                                            kind,
-                                            (mouse.column, mouse.row),
-                                        );
-                                    }
+                                    )
+                                {
+                                    app.open_context_menu(value, kind, (mouse.column, mouse.row));
                                 }
                             }
                             MouseEventKind::Drag(MouseButton::Left) => {
                                 // If we're in time mode with active drag, extend to wherever the mouse is
-                                if app.mode() == AppMode::TimeRange {
+                                if app.mode() == AppMode::TimeRange
+                                    && let Some(sparkline) = app.sparkline_data()
+                                {
                                     // Try to map to nearest bucket even outside sparkline area
-                                    if let Some(sparkline) = app.sparkline_data() {
-                                        let col = mouse.column as usize;
-                                        let bucket = col
-                                            .saturating_sub(1)
-                                            .min(sparkline.num_buckets.saturating_sub(1));
-                                        app.time_mouse_drag(bucket);
-                                    }
+                                    let col = mouse.column as usize;
+                                    let bucket = col
+                                        .saturating_sub(1)
+                                        .min(sparkline.num_buckets.saturating_sub(1));
+                                    app.time_mouse_drag(bucket);
                                 }
                             }
                             MouseEventKind::Up(MouseButton::Left) => {
-                                if app.mode() == AppMode::TimeRange {
-                                    if let Some(sparkline) = app.sparkline_data() {
-                                        let col = mouse.column as usize;
-                                        let bucket = col
-                                            .saturating_sub(1)
-                                            .min(sparkline.num_buckets.saturating_sub(1));
-                                        app.time_mouse_up(bucket);
-                                    }
+                                if app.mode() == AppMode::TimeRange
+                                    && let Some(sparkline) = app.sparkline_data()
+                                {
+                                    let col = mouse.column as usize;
+                                    let bucket = col
+                                        .saturating_sub(1)
+                                        .min(sparkline.num_buckets.saturating_sub(1));
+                                    app.time_mouse_up(bucket);
                                 }
                             }
                             MouseEventKind::ScrollDown => app.scroll_down(3),
@@ -497,15 +485,15 @@ fn run_event_loop(
         }
 
         // Poll for new lines in follow mode (unless paused)
-        if !app.is_follow_paused() {
-            if let Some(source) = follow_source.as_mut() {
-                let new_lines = match source {
-                    FollowSource::File(s) => s.read_new_lines()?,
-                    FollowSource::Stdin(s) => s.read_new_lines(),
-                };
-                if !new_lines.is_empty() {
-                    app.append_lines(new_lines);
-                }
+        if !app.is_follow_paused()
+            && let Some(source) = follow_source.as_mut()
+        {
+            let new_lines = match source {
+                FollowSource::File(s) => s.read_new_lines()?,
+                FollowSource::Stdin(s) => s.read_new_lines(),
+            };
+            if !new_lines.is_empty() {
+                app.append_lines(new_lines);
             }
         }
 

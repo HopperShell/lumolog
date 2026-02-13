@@ -22,10 +22,10 @@ pub fn filter_lines(
         .iter()
         .enumerate()
         .filter(|(_, line)| {
-            if let Some(min) = min_level {
-                if let Some(level) = line.level {
-                    return level >= min;
-                }
+            if let Some(min) = min_level
+                && let Some(level) = line.level
+            {
+                return level >= min;
             }
             true
         })

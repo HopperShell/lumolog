@@ -55,8 +55,7 @@ static KEYWORD_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)\b(?:true|false|null|nil|none|undefined|NaN)\b").unwrap());
 
 // 12. Version numbers (dotted: 2.4.1, 10.15.7 — exactly 3 segments)
-static VERSION_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\bv?\d+\.\d+\.\d+\b").unwrap());
+static VERSION_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\bv?\d+\.\d+\.\d+\b").unwrap());
 
 // 13. Numbers (2+ digits, or decimal, or with unit suffix — skip tiny standalone digits)
 static NUMBER_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -225,17 +224,17 @@ fn collect_all_regions(text: &str) -> Vec<MatchRegion> {
 
     // 4. IPv4 addresses (validate octets)
     for caps in IPV4_RE.captures_iter(text) {
-        if let Some(m) = caps.get(0) {
-            if is_valid_ipv4(&caps) {
-                let region = MatchRegion {
-                    start: m.start(),
-                    end: m.end(),
-                    style: ip_style(),
-                    kind: TokenKind::Ip,
-                };
-                if !overlaps(&regions, &region) {
-                    regions.push(region);
-                }
+        if let Some(m) = caps.get(0)
+            && is_valid_ipv4(&caps)
+        {
+            let region = MatchRegion {
+                start: m.start(),
+                end: m.end(),
+                style: ip_style(),
+                kind: TokenKind::Ip,
+            };
+            if !overlaps(&regions, &region) {
+                regions.push(region);
             }
         }
     }
@@ -479,34 +478,34 @@ fn timestamp_style() -> Style {
 fn highlight_plain_line(parsed: &ParsedLine) -> Line<'_> {
     let style = level_style(parsed.level);
 
-    if let Some(ref ts) = parsed.timestamp {
-        if let Some(pos) = parsed.raw.find(ts.as_str()) {
-            let ts_end = pos + ts.len();
-            let (ts_part, rest) = parsed.raw.split_at(ts_end);
-            let mut spans = vec![Span::styled(ts_part.to_string(), timestamp_style())];
+    if let Some(ref ts) = parsed.timestamp
+        && let Some(pos) = parsed.raw.find(ts.as_str())
+    {
+        let ts_end = pos + ts.len();
+        let (ts_part, rest) = parsed.raw.split_at(ts_end);
+        let mut spans = vec![Span::styled(ts_part.to_string(), timestamp_style())];
 
-            // Extract level keyword as a bold badge if present
-            if parsed.level.is_some() {
-                if let Some(level_match) = HIGHLIGHT_LEVEL_RE.find(rest) {
-                    let before_level = &rest[..level_match.start()];
-                    let level_text = level_match.as_str();
-                    let after_level = &rest[level_match.end()..];
+        // Extract level keyword as a bold badge if present
+        if parsed.level.is_some()
+            && let Some(level_match) = HIGHLIGHT_LEVEL_RE.find(rest)
+        {
+            let before_level = &rest[..level_match.start()];
+            let level_text = level_match.as_str();
+            let after_level = &rest[level_match.end()..];
 
-                    if !before_level.is_empty() {
-                        spans.push(Span::styled(before_level.to_string(), style));
-                    }
-                    spans.push(Span::styled(
-                        level_text.to_string(),
-                        style.add_modifier(Modifier::BOLD),
-                    ));
-                    spans.extend(tokenize_with_patterns(after_level, style));
-                    return Line::from(spans);
-                }
+            if !before_level.is_empty() {
+                spans.push(Span::styled(before_level.to_string(), style));
             }
-
-            spans.extend(tokenize_with_patterns(rest, style));
+            spans.push(Span::styled(
+                level_text.to_string(),
+                style.add_modifier(Modifier::BOLD),
+            ));
+            spans.extend(tokenize_with_patterns(after_level, style));
             return Line::from(spans);
         }
+
+        spans.extend(tokenize_with_patterns(rest, style));
+        return Line::from(spans);
     }
     Line::from(tokenize_with_patterns(&parsed.raw, style))
 }
@@ -558,14 +557,14 @@ fn highlight_json_line(parsed: &ParsedLine) -> Line<'_> {
 fn highlight_syslog_line(parsed: &ParsedLine) -> Line<'_> {
     let style = level_style(parsed.level);
 
-    if let Some(ref ts) = parsed.timestamp {
-        if let Some(pos) = parsed.raw.find(ts.as_str()) {
-            let ts_end = pos + ts.len();
-            let (ts_part, rest) = parsed.raw.split_at(ts_end);
-            let mut spans = vec![Span::styled(ts_part.to_string(), timestamp_style())];
-            spans.extend(tokenize_with_patterns(rest, style));
-            return Line::from(spans);
-        }
+    if let Some(ref ts) = parsed.timestamp
+        && let Some(pos) = parsed.raw.find(ts.as_str())
+    {
+        let ts_end = pos + ts.len();
+        let (ts_part, rest) = parsed.raw.split_at(ts_end);
+        let mut spans = vec![Span::styled(ts_part.to_string(), timestamp_style())];
+        spans.extend(tokenize_with_patterns(rest, style));
+        return Line::from(spans);
     }
     Line::from(tokenize_with_patterns(&parsed.raw, style))
 }
@@ -672,32 +671,33 @@ pub fn apply_search_highlight(line: Line<'_>, pattern: &str) -> Line<'static> {
 /// In pretty mode for JSON, returns the expanded multi-line JSON.
 /// For everything else (or when pretty=false), returns a single line.
 pub fn highlight_line_expanded(parsed: &ParsedLine, pretty: bool) -> Vec<Line<'_>> {
-    if pretty && parsed.format == LogFormat::Json {
-        if let Some(ref pretty_json) = parsed.pretty_json {
-            let style = level_style(parsed.level);
-            let level_str = match parsed.level {
-                Some(LogLevel::Fatal) => "FTL",
-                Some(LogLevel::Error) => "ERR",
-                Some(LogLevel::Warn) => "WRN",
-                Some(LogLevel::Info) => "INF",
-                Some(LogLevel::Debug) => "DBG",
-                Some(LogLevel::Trace) => "TRC",
-                None => "???",
-            };
+    if pretty
+        && parsed.format == LogFormat::Json
+        && let Some(ref pretty_json) = parsed.pretty_json
+    {
+        let style = level_style(parsed.level);
+        let level_str = match parsed.level {
+            Some(LogLevel::Fatal) => "FTL",
+            Some(LogLevel::Error) => "ERR",
+            Some(LogLevel::Warn) => "WRN",
+            Some(LogLevel::Info) => "INF",
+            Some(LogLevel::Debug) => "DBG",
+            Some(LogLevel::Trace) => "TRC",
+            None => "???",
+        };
 
-            let mut lines = Vec::new();
-            // First line: level badge + separator
-            lines.push(Line::from(vec![
-                Span::styled("--- ".to_string(), style.add_modifier(Modifier::BOLD)),
-                Span::styled(format!("[{}]", level_str), level_badge_style(parsed.level)),
-                Span::styled(" ".to_string(), Style::default()),
-            ]));
-            // Pretty-printed JSON lines
-            for json_line in pretty_json.lines() {
-                lines.push(Line::from(Span::styled(format!("  {}", json_line), style)));
-            }
-            return lines;
+        let mut lines = Vec::new();
+        // First line: level badge + separator
+        lines.push(Line::from(vec![
+            Span::styled("--- ".to_string(), style.add_modifier(Modifier::BOLD)),
+            Span::styled(format!("[{}]", level_str), level_badge_style(parsed.level)),
+            Span::styled(" ".to_string(), Style::default()),
+        ]));
+        // Pretty-printed JSON lines
+        for json_line in pretty_json.lines() {
+            lines.push(Line::from(Span::styled(format!("  {}", json_line), style)));
         }
+        return lines;
     }
     vec![highlight_line(parsed)]
 }

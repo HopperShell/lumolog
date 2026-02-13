@@ -275,10 +275,10 @@ fn parse_json_line(raw: &str) -> ParsedLine {
                             }
                         }
                         // Epoch secs (1e9..1e10 range)
-                        if (1_000_000_000..10_000_000_000).contains(&n) {
-                            if let Some(dt) = chrono::DateTime::from_timestamp(n, 0) {
-                                return Some(dt.format("%Y-%m-%dT%H:%M:%SZ").to_string());
-                            }
+                        if (1_000_000_000..10_000_000_000).contains(&n)
+                            && let Some(dt) = chrono::DateTime::from_timestamp(n, 0)
+                        {
+                            return Some(dt.format("%Y-%m-%dT%H:%M:%SZ").to_string());
                         }
                     }
                     None
@@ -301,10 +301,11 @@ fn parse_json_line(raw: &str) -> ParsedLine {
 
             // Docker logs: strip leading embedded timestamp from message
             // when a wrapper timestamp already exists (avoids double timestamp display).
-            if is_docker_log && timestamp.is_some() {
-                if let Some(m) = PLAIN_TIMESTAMP_RE.find(&message) {
-                    message = message[m.end()..].trim_start().to_string();
-                }
+            if is_docker_log
+                && timestamp.is_some()
+                && let Some(m) = PLAIN_TIMESTAMP_RE.find(&message)
+            {
+                message = message[m.end()..].trim_start().to_string();
             }
 
             let pretty = serde_json::to_string_pretty(&value).ok();

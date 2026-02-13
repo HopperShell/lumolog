@@ -66,10 +66,10 @@ pub fn parse_timestamp(raw: &str) -> Option<NaiveDateTime> {
 
     // Try last successful format first ("winner sticks")
     let last_idx = LAST_FORMAT_IDX.get();
-    if let Some(idx) = last_idx {
-        if let Some(dt) = try_parse_with_format(raw, idx) {
-            return Some(dt);
-        }
+    if let Some(idx) = last_idx
+        && let Some(dt) = try_parse_with_format(raw, idx)
+    {
+        return Some(dt);
     }
 
     // Try all format strings
@@ -93,10 +93,10 @@ pub fn parse_timestamp(raw: &str) -> Option<NaiveDateTime> {
             }
         }
         // Epoch secs (1e9..1e10 range)
-        if (1_000_000_000..10_000_000_000).contains(&n) {
-            if let Some(dt) = chrono::DateTime::from_timestamp(n, 0) {
-                return Some(dt.naive_utc());
-            }
+        if (1_000_000_000..10_000_000_000).contains(&n)
+            && let Some(dt) = chrono::DateTime::from_timestamp(n, 0)
+        {
+            return Some(dt.naive_utc());
         }
     }
 

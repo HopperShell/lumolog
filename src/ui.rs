@@ -6,8 +6,8 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 
 use crate::app::{App, AppMode};
 use crate::highlighter::{
-    TokenKind, apply_search_highlight, highlight_line, highlight_line_expanded,
-    level_badge_style, tokenize_with_metadata,
+    TokenKind, apply_search_highlight, highlight_line, highlight_line_expanded, level_badge_style,
+    tokenize_with_metadata,
 };
 use crate::parser::LogFormat;
 use crate::parser::LogLevel;
@@ -30,7 +30,13 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     let level_counts = app.level_counts();
     let stats_height: u16 = if level_counts.is_empty() { 0 } else { 1 };
 
-    let [sparkline_area, main_area, filter_area, stats_area, status_area] = Layout::vertical([
+    let [
+        sparkline_area,
+        main_area,
+        filter_area,
+        stats_area,
+        status_area,
+    ] = Layout::vertical([
         Constraint::Length(sparkline_height),
         Constraint::Fill(1),
         Constraint::Length(filter_height),
@@ -522,24 +528,23 @@ fn render_sparkline(frame: &mut Frame, app: &App, area: Rect) {
         }
 
         // If there's an active selection preview, show range times
-        if let Some((sel_start, sel_end)) = selected_range {
-            if let Some(state) = time_state {
-                if state.range_start.is_some() {
-                    let start_ts = sparkline.bucket_starts[sel_start];
-                    let end_ts = sparkline.bucket_starts[sel_end.min(sparkline.num_buckets - 1)];
-                    let range_label = format!(
-                        "{} — {}",
-                        timeindex::format_sparkline_time(start_ts, multi_day),
-                        timeindex::format_sparkline_time(end_ts, multi_day)
-                    );
-                    let mid = (sel_start + sel_end) / 2;
-                    let label_start = mid.saturating_sub(range_label.len() / 2);
-                    for (j, ch) in range_label.chars().enumerate() {
-                        let pos = label_start + j;
-                        if pos < axis_chars.len() {
-                            axis_chars[pos] = ch;
-                        }
-                    }
+        if let Some((sel_start, sel_end)) = selected_range
+            && let Some(state) = time_state
+            && state.range_start.is_some()
+        {
+            let start_ts = sparkline.bucket_starts[sel_start];
+            let end_ts = sparkline.bucket_starts[sel_end.min(sparkline.num_buckets - 1)];
+            let range_label = format!(
+                "{} — {}",
+                timeindex::format_sparkline_time(start_ts, multi_day),
+                timeindex::format_sparkline_time(end_ts, multi_day)
+            );
+            let mid = (sel_start + sel_end) / 2;
+            let label_start = mid.saturating_sub(range_label.len() / 2);
+            for (j, ch) in range_label.chars().enumerate() {
+                let pos = label_start + j;
+                if pos < axis_chars.len() {
+                    axis_chars[pos] = ch;
                 }
             }
         }
@@ -565,12 +570,7 @@ fn render_sparkline(frame: &mut Frame, app: &App, area: Rect) {
 
 // --- Stats bar rendering ---
 
-fn render_stats_bar(
-    frame: &mut Frame,
-    app: &App,
-    area: Rect,
-    level_counts: &[(LogLevel, usize)],
-) {
+fn render_stats_bar(frame: &mut Frame, app: &App, area: Rect, level_counts: &[(LogLevel, usize)]) {
     let active_min = app.min_level();
     let mut spans: Vec<Span> = Vec::new();
     spans.push(Span::styled(" ", Style::default()));
@@ -891,11 +891,11 @@ fn get_clickable_text(parsed: &crate::parser::ParsedLine) -> String {
             text
         }
         LogFormat::Plain | LogFormat::Syslog => {
-            if let Some(ref ts) = parsed.timestamp {
-                if let Some(pos) = parsed.raw.find(ts.as_str()) {
-                    let ts_end = pos + ts.len();
-                    return parsed.raw[ts_end..].to_string();
-                }
+            if let Some(ref ts) = parsed.timestamp
+                && let Some(pos) = parsed.raw.find(ts.as_str())
+            {
+                let ts_end = pos + ts.len();
+                return parsed.raw[ts_end..].to_string();
             }
             parsed.raw.clone()
         }
@@ -912,10 +912,10 @@ fn get_timestamp_prefix_len(parsed: &crate::parser::ParsedLine) -> usize {
         | LogFormat::PythonLog
         | LogFormat::AccessLog => 0, // structured formats handle timestamp in extra prefix
         LogFormat::Plain | LogFormat::Syslog => {
-            if let Some(ref ts) = parsed.timestamp {
-                if let Some(pos) = parsed.raw.find(ts.as_str()) {
-                    return pos + ts.len();
-                }
+            if let Some(ref ts) = parsed.timestamp
+                && let Some(pos) = parsed.raw.find(ts.as_str())
+            {
+                return pos + ts.len();
             }
             0
         }
