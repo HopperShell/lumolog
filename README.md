@@ -26,6 +26,8 @@ Most log viewers just make text pretty. Lumolog *understands* your logs — it k
 
 ```bash
 # From source (requires Rust 1.85+)
+git clone https://github.com/HopperShell/lumolog.git
+cd lumolog
 cargo install --path .
 ```
 
