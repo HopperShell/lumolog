@@ -20,8 +20,6 @@ Lumolog is a TUI log viewer built for developers, SREs, and security teams. Poin
 
 Most log viewers just make text pretty. Lumolog *understands* your logs — it knows what's an IP address, what's a timestamp, what's an error level, and lets you act on all of it.
 
-![Lumolog in action — filtering logs with live match count](assets/search.gif)
-
 ## Quickstart
 
 ### Install
@@ -65,7 +63,9 @@ Press `/` to open the filter bar. Type a substring and matching lines are shown 
 
 The filter bar shows a live match count as you type: `/ error  (142 matches)` or `/ conref  (~38 fuzzy)`.
 
-![Search and filter with live match count](assets/search.gif)
+Here, pressing `/` opens the filter bar and typing a query instantly narrows the view to matching lines — non-matching lines are hidden and matches are highlighted in yellow. The match count updates live as you type.
+
+![Pressing / to open the filter bar, typing a query, and seeing matching lines highlighted with a live count](assets/search.gif)
 
 ### Level Filtering & Stats Bar
 
@@ -83,7 +83,9 @@ Quick presets: `1` for last 5 minutes, `2` for 15 minutes, `3` for 1 hour, `4` f
 
 Time filtering composes with all other filters — combine a time window with a level filter and text search to isolate exactly the incident you're investigating.
 
-![Click and drag the sparkline to select a time range](assets/timerange.gif)
+The sparkline at the top visualizes log density over time — spikes show bursts of activity. Click and drag across it to select a time window, and only logs within that range are shown. Release to apply the filter.
+
+![Dragging across the sparkline density bar to select a time window and filter logs to that range](assets/timerange.gif)
 
 ### Click-to-Action
 
@@ -93,7 +95,9 @@ Click any highlighted token to open a context menu with relevant actions:
 - **URLs** — filter by value or open in browser
 - **UUIDs, paths, HTTP methods, key=value pairs** — filter by value
 
-![Click an IP to filter, click again to look up on AbuseIPDB](assets/abuseipdb.gif)
+Clicking a highlighted IP address opens a context menu — choose "Filter" to narrow the view to all log lines containing that IP, or choose "AbuseIPDB" to open a threat intelligence lookup in your browser.
+
+![Clicking an IP address to filter logs by that IP, then clicking it again and selecting AbuseIPDB to open a threat lookup](assets/abuseipdb.gif)
 
 ### JSON Pretty-Print
 
@@ -120,11 +124,13 @@ Press `Enter` to activate cursor mode. A highlighted bar tracks your position as
 
 Similar-line filtering is powerful for noisy logs — it computes a structural template by replacing IPs, numbers, UUIDs, URLs, and timestamps with wildcards, then shows all lines matching that shape.
 
-![Cursor mode — navigate and yank a single line](assets/cursor-mode.gif)
+Pressing `Enter` activates cursor mode — a highlighted bar appears that you can move with `j`/`k`. Press `y` to copy the current line to your clipboard. The status bar briefly flashes "YANKED" to confirm.
 
-Use `Y` from any mode to yank all currently filtered lines at once — combine a text filter or level filter with `Y` to extract exactly the lines you need.
+![Entering cursor mode with Enter, navigating to a line with j/k, and pressing y to yank it to clipboard](assets/cursor-mode.gif)
 
-![Filter then Shift+Y to yank all matching lines](assets/big-yank.gif)
+To extract multiple lines at once, apply a filter first — use `/` to search or `v` to filter by level — then press `Y` to yank every visible line to your clipboard in one shot. Useful for pulling all errors into an incident report or Slack message.
+
+![Filtering logs then pressing Shift+Y to yank all filtered lines to clipboard at once](assets/big-yank.gif)
 
 ### Command Palette
 
