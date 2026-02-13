@@ -358,9 +358,10 @@ fn run_event_loop(
                                     app.clear_similar();
                                 } else if app.time_range().is_some() {
                                     app.clear_time_range();
-                                } else {
-                                    app.quit();
+                                } else if !app.filter_pattern().is_empty() {
+                                    app.clear_filter();
                                 }
+                                // No active filters: Esc does nothing. Use 'q' to quit.
                             }
                             KeyCode::Down | KeyCode::Char('j') => app.scroll_down(1),
                             KeyCode::Up | KeyCode::Char('k') => app.scroll_up(1),

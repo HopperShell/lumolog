@@ -6,7 +6,7 @@ Core differentiator vs tailspin: tailspin makes text pretty. Lumolog *understand
 
 Polish the core UX before adding big features. These are low-medium effort and make the tool feel complete.
 
-- **Fix Esc behavior** — Esc in normal mode quits the app, which is hostile. Users expect "go back", not "exit". Change: Esc always means "cancel/back" (exit cursor, close palette, clear filter, clear similar). Only `q` quits. Low effort, high trust gain.
+- ~~**Fix Esc behavior**~~ — Esc always means "cancel/back" (clears similar → time range → text filter, in that order). Only `q` quits.
 - **Go-to-line** — no way to jump to a specific line number. Stack traces, error messages, and cross-referencing all need this. Add a `GoToLine` action in the command palette that opens a small input prompt. Touches: `command.rs`, `app.rs`, `ui.rs`, `main.rs`.
 - **Incremental search (n/N jump)** — filter mode hides non-matching lines entirely. Add a search mode where matches are highlighted in-place and `n`/`N` jumps to the next/previous match without hiding anything. Like `/pattern` then `n` in less/vim. Touches: `app.rs`, `main.rs`, `ui.rs`.
 - **Stats bar** — `parsed_lines` already has `level` on every entry. Scan once -> `HashMap<LogLevel, usize>` counts. Render as a compact colored row above the status bar: `E:42 W:130 I:1204`. Click a count to filter by that level (mouse integration already exists). Touches: `app.rs`, `ui.rs`.

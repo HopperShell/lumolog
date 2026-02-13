@@ -141,7 +141,7 @@ pub fn commands() -> &'static [Command] {
         },
         Command {
             name: "Quit",
-            keybinding: Some("q / Esc"),
+            keybinding: Some("q"),
             action: Quit,
         },
         // --- Navigation (less important, bottom) ---
