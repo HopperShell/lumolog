@@ -175,7 +175,7 @@ fn test_file_path_highlighted() {
     let has_cyan_path = styled
         .spans
         .iter()
-        .any(|span| span.style.fg == Some(Color::Cyan) && span.content.contains("/etc/app"));
+        .any(|span| span.style.fg == Some(Color::Indexed(108)) && span.content.contains("/etc/app"));
     assert!(has_cyan_path, "File paths should be highlighted in cyan");
 }
 
@@ -415,7 +415,7 @@ fn test_pointer_address_highlighted() {
     let has_pointer = styled
         .spans
         .iter()
-        .any(|span| span.style.fg == Some(Color::Cyan) && span.content.contains("0x7fff"));
+        .any(|span| span.style.fg == Some(Color::Indexed(208)) && span.content.contains("0x7fff"));
     assert!(has_pointer, "Pointer addresses should be highlighted");
 }
 

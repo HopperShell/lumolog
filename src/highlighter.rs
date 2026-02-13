@@ -94,15 +94,17 @@ fn uuid_style() -> Style {
 }
 
 fn ip_style() -> Style {
-    Style::default().fg(Color::Cyan)
+    Style::default()
+        .fg(Color::Cyan)
+        .add_modifier(Modifier::BOLD)
 }
 
 fn pointer_style() -> Style {
-    Style::default().fg(Color::Cyan)
+    Style::default().fg(Color::Indexed(208))
 }
 
 fn path_style() -> Style {
-    Style::default().fg(Color::Cyan)
+    Style::default().fg(Color::Indexed(108))
 }
 
 fn unix_process_style() -> Style {

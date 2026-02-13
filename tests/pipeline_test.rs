@@ -205,8 +205,8 @@ fn test_plain_pattern_highlighting() {
 
     // Line 1: "/etc/app/config.yaml" path should be cyan
     assert!(
-        has_span(&result.highlighted[1], "/etc/app/config.yaml", Color::Cyan),
-        "Line 1: file path should be cyan. Spans: {}",
+        has_span(&result.highlighted[1], "/etc/app/config.yaml", Color::Indexed(108)),
+        "Line 1: file path should be Indexed(108) muted green. Spans: {}",
         debug_spans(&result.highlighted[1])
     );
 
@@ -679,8 +679,8 @@ fn test_mixed_path_cyan() {
     let result = pipeline("testdata/sample_mixed.log");
     // Line 1: "/etc/app/config.yaml" should be cyan
     assert!(
-        has_span(&result.highlighted[1], "/etc/app/config.yaml", Color::Cyan),
-        "Line 1: file path should be cyan. Spans: {}",
+        has_span(&result.highlighted[1], "/etc/app/config.yaml", Color::Indexed(108)),
+        "Line 1: file path should be Indexed(108) muted green. Spans: {}",
         debug_spans(&result.highlighted[1])
     );
 }
@@ -1096,14 +1096,14 @@ fn test_stress_pointer_address() {
     let result = pipeline("testdata/sample_stress.log");
     // Line 8: "0xc0001a2000"
     assert!(
-        has_span(&result.highlighted[8], "0xc0001a2000", Color::Cyan),
-        "Pointer address should be cyan. Spans: {}",
+        has_span(&result.highlighted[8], "0xc0001a2000", Color::Indexed(208)),
+        "Pointer address should be Indexed(208) orange. Spans: {}",
         debug_spans(&result.highlighted[8])
     );
     // Line 29: "0xdeadbeef"
     assert!(
-        has_span(&result.highlighted[29], "0xdeadbeef", Color::Cyan),
-        "Pointer 0xdeadbeef should be cyan. Spans: {}",
+        has_span(&result.highlighted[29], "0xdeadbeef", Color::Indexed(208)),
+        "Pointer 0xdeadbeef should be Indexed(208) orange. Spans: {}",
         debug_spans(&result.highlighted[29])
     );
 }
@@ -1115,8 +1115,8 @@ fn test_stress_unix_path() {
     let result = pipeline("testdata/sample_stress.log");
     // Line 1: "/etc/myapp/config.yaml"
     assert!(
-        has_span(&result.highlighted[1], "/etc/myapp/config.yaml", Color::Cyan),
-        "Unix path should be cyan. Spans: {}",
+        has_span(&result.highlighted[1], "/etc/myapp/config.yaml", Color::Indexed(108)),
+        "Unix path should be Indexed(108) muted green. Spans: {}",
         debug_spans(&result.highlighted[1])
     );
 }
@@ -1126,8 +1126,8 @@ fn test_stress_relative_path() {
     let result = pipeline("testdata/sample_stress.log");
     // Line 17: "./cmd/server/main.go"
     assert!(
-        has_span(&result.highlighted[17], "./cmd/server/main.go", Color::Cyan),
-        "Relative path should be cyan. Spans: {}",
+        has_span(&result.highlighted[17], "./cmd/server/main.go", Color::Indexed(108)),
+        "Relative path should be Indexed(108) muted green. Spans: {}",
         debug_spans(&result.highlighted[17])
     );
 }
@@ -1145,8 +1145,8 @@ fn test_stress_http_method_and_path() {
     );
     // Line 6: path
     assert!(
-        has_span(&result.highlighted[6], "/api/v2/users", Color::Cyan),
-        "URL path should be cyan. Spans: {}",
+        has_span(&result.highlighted[6], "/api/v2/users", Color::Indexed(108)),
+        "URL path should be Indexed(108) muted green. Spans: {}",
         debug_spans(&result.highlighted[6])
     );
 }
@@ -1358,6 +1358,41 @@ fn test_stress_trace_color() {
         has_color(&result.highlighted[27], Color::Indexed(243)),
         "TRACE line should use Indexed(243). Spans: {}",
         debug_spans(&result.highlighted[27])
+    );
+}
+
+// --- Diversified token colors ---
+
+#[test]
+fn test_ip_is_cyan_bold() {
+    let result = pipeline_from_lines(&["2024-01-15 INFO connected to 192.168.1.100"]);
+    let line = &result.highlighted[0];
+    assert!(
+        has_span_with_modifier(line, "192.168.1.100", Color::Cyan, ratatui::style::Modifier::BOLD),
+        "IP should be cyan+bold. Spans: {}",
+        debug_spans(line)
+    );
+}
+
+#[test]
+fn test_path_is_muted_green() {
+    let result = pipeline_from_lines(&["2024-01-15 INFO loaded /etc/app/config.yaml"]);
+    let line = &result.highlighted[0];
+    assert!(
+        has_span(line, "/etc/app/config.yaml", Color::Indexed(108)),
+        "Path should be Indexed(108) muted green. Spans: {}",
+        debug_spans(line)
+    );
+}
+
+#[test]
+fn test_pointer_is_orange() {
+    let result = pipeline_from_lines(&["2024-01-15 ERROR segfault at 0x7fff5fbff8c0"]);
+    let line = &result.highlighted[0];
+    assert!(
+        has_span(line, "0x7fff5fbff8c0", Color::Indexed(208)),
+        "Pointer should be Indexed(208) orange. Spans: {}",
+        debug_spans(line)
     );
 }
 
