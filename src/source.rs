@@ -177,6 +177,7 @@ impl FollowableStdinSource {
     }
 
     /// Returns true if the stdin pipe has been closed (EOF / writer dropped).
+    #[allow(dead_code)]
     pub fn is_closed(&self) -> bool {
         self.closed
     }
