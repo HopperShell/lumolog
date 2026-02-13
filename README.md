@@ -8,6 +8,11 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/HopperShell/lumolog/actions/workflows/ci.yml"><img src="https://github.com/HopperShell/lumolog/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+</p>
+
+<p align="center">
   <a href="#quickstart">Quickstart</a> &middot;
   <a href="#features">Features</a> &middot;
   <a href="#supported-formats">Formats</a> &middot;
