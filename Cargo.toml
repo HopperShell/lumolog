@@ -2,6 +2,11 @@
 name = "lumolog"
 version = "0.1.0"
 edition = "2024"
+description = "A terminal log viewer that understands your logs"
+license = "MIT"
+repository = "https://github.com/HopperShell/lumolog"
+keywords = ["logs", "tui", "terminal", "viewer", "cli"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 anyhow = "1.0.101"
