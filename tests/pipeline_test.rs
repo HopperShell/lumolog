@@ -877,6 +877,491 @@ fn test_number_with_unit_still_highlighted() {
 }
 
 // ===========================================================================
+// Stress test: exercises every highlighting pattern with edge cases
+// ===========================================================================
+
+#[test]
+fn test_stress_detect_plain() {
+    let result = pipeline("testdata/sample_stress.log");
+    assert_eq!(result.format, LogFormat::Plain);
+}
+
+#[test]
+fn test_stress_all_levels_detected() {
+    let result = pipeline("testdata/sample_stress.log");
+    let expected = vec![
+        (0, Some(LogLevel::Info)),    // INFO Application v3.12.1
+        (1, Some(LogLevel::Debug)),   // DEBUG Loaded 42 config keys
+        (2, Some(LogLevel::Info)),    // INFO Connected to postgres
+        (3, Some(LogLevel::Warn)),    // WARN Memory usage at 87%
+        (4, Some(LogLevel::Error)),   // ERROR Failed to reach upstream
+        (5, Some(LogLevel::Debug)),   // DEBUG Request id=...
+        (6, Some(LogLevel::Info)),    // INFO GET /api/v2/users
+        (7, Some(LogLevel::Warn)),    // WARN Certificate expires
+        (8, Some(LogLevel::Error)),   // ERROR Null pointer
+        (15, Some(LogLevel::Fatal)),  // FATAL Unrecoverable error
+        (27, Some(LogLevel::Trace)),  // TRACE Entering function
+    ];
+    for (i, exp) in expected {
+        assert_level(&result.parsed[i], exp, i);
+    }
+}
+
+#[test]
+fn test_stress_all_levels_colored() {
+    let result = pipeline("testdata/sample_stress.log");
+    for (i, (parsed, line)) in result.parsed.iter().zip(result.highlighted.iter()).enumerate() {
+        assert_level_color(parsed, line, i);
+    }
+}
+
+// --- Version numbers ---
+
+#[test]
+fn test_stress_version_with_v_prefix() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 0: "v3.12.1" should be a single cyan span
+    assert!(
+        has_span(&result.highlighted[0], "v3.12.1", Color::Cyan),
+        "v3.12.1 should be single cyan span. Spans: {}",
+        debug_spans(&result.highlighted[0])
+    );
+}
+
+#[test]
+fn test_stress_version_in_artifact_name() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 16: "myapp-v2.4.1-linux" — version extracted from compound name
+    assert!(
+        has_span(&result.highlighted[16], "v2.4.1", Color::Cyan),
+        "v2.4.1 in artifact name should be cyan. Spans: {}",
+        debug_spans(&result.highlighted[16])
+    );
+}
+
+// --- Numbers with units ---
+
+#[test]
+fn test_stress_decimal_ms() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 1: "3.5ms" — decimal with unit
+    assert!(
+        has_span(&result.highlighted[1], "3.5ms", Color::Cyan),
+        "3.5ms should be single cyan span. Spans: {}",
+        debug_spans(&result.highlighted[1])
+    );
+}
+
+#[test]
+fn test_stress_decimal_mb() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 11: "23.7MB" — decimal with MB unit
+    assert!(
+        has_span(&result.highlighted[11], "23.7MB", Color::Cyan),
+        "23.7MB should be single cyan span. Spans: {}",
+        debug_spans(&result.highlighted[11])
+    );
+}
+
+#[test]
+fn test_stress_decimal_seconds() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 16: "4.2s"
+    assert!(
+        has_span(&result.highlighted[16], "4.2s", Color::Cyan),
+        "4.2s should be single cyan span. Spans: {}",
+        debug_spans(&result.highlighted[16])
+    );
+}
+
+// --- Percentages ---
+
+#[test]
+fn test_stress_percent() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 3: "87%"
+    assert!(
+        has_span(&result.highlighted[3], "87%", Color::Cyan),
+        "87% should be single cyan span. Spans: {}",
+        debug_spans(&result.highlighted[3])
+    );
+    // Line 12: "92%"
+    assert!(
+        has_span(&result.highlighted[12], "92%", Color::Cyan),
+        "92% should be single cyan span. Spans: {}",
+        debug_spans(&result.highlighted[12])
+    );
+}
+
+// --- GB without decimal ---
+
+#[test]
+fn test_stress_gb_units() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 3: "3.5GB" and "4GB"
+    assert!(
+        has_span(&result.highlighted[3], "3.5GB", Color::Cyan),
+        "3.5GB should be cyan. Spans: {}",
+        debug_spans(&result.highlighted[3])
+    );
+    assert!(
+        has_span(&result.highlighted[3], "4GB", Color::Cyan),
+        "4GB should be cyan. Spans: {}",
+        debug_spans(&result.highlighted[3])
+    );
+}
+
+// --- IP addresses ---
+
+#[test]
+fn test_stress_ipv4_with_port() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 2: two IPs with ports
+    assert!(
+        has_span(&result.highlighted[2], "10.0.0.5:5432", Color::Cyan),
+        "IPv4:port should be cyan. Spans: {}",
+        debug_spans(&result.highlighted[2])
+    );
+    assert!(
+        has_span(&result.highlighted[2], "10.0.0.6:6379", Color::Cyan),
+        "IPv4:port should be cyan. Spans: {}",
+        debug_spans(&result.highlighted[2])
+    );
+}
+
+#[test]
+fn test_stress_ipv6_full() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 10: full IPv6 address
+    assert!(
+        has_span(
+            &result.highlighted[10],
+            "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+            Color::Cyan
+        ),
+        "Full IPv6 address should be cyan. Spans: {}",
+        debug_spans(&result.highlighted[10])
+    );
+}
+
+#[test]
+fn test_stress_ipv6_loopback() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 25: "::1" loopback
+    assert!(
+        has_span(&result.highlighted[25], "::1", Color::Cyan),
+        "IPv6 loopback ::1 should be cyan. Spans: {}",
+        debug_spans(&result.highlighted[25])
+    );
+}
+
+// --- UUIDs ---
+
+#[test]
+fn test_stress_uuid() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 5: full UUID
+    assert!(
+        has_span(
+            &result.highlighted[5],
+            "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+            Color::Magenta
+        ),
+        "UUID should be magenta. Spans: {}",
+        debug_spans(&result.highlighted[5])
+    );
+}
+
+// --- URLs ---
+
+#[test]
+fn test_stress_url_with_query_params() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 4: URL with query string
+    assert!(
+        has_span(
+            &result.highlighted[4],
+            "https://api.example.com/v2/users?limit=100&offset=0",
+            Color::Blue
+        ),
+        "URL with query params should be blue. Spans: {}",
+        debug_spans(&result.highlighted[4])
+    );
+}
+
+// --- Pointer/hex addresses ---
+
+#[test]
+fn test_stress_pointer_address() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 8: "0xc0001a2000"
+    assert!(
+        has_span(&result.highlighted[8], "0xc0001a2000", Color::Cyan),
+        "Pointer address should be cyan. Spans: {}",
+        debug_spans(&result.highlighted[8])
+    );
+    // Line 29: "0xdeadbeef"
+    assert!(
+        has_span(&result.highlighted[29], "0xdeadbeef", Color::Cyan),
+        "Pointer 0xdeadbeef should be cyan. Spans: {}",
+        debug_spans(&result.highlighted[29])
+    );
+}
+
+// --- Paths ---
+
+#[test]
+fn test_stress_unix_path() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 1: "/etc/myapp/config.yaml"
+    assert!(
+        has_span(&result.highlighted[1], "/etc/myapp/config.yaml", Color::Cyan),
+        "Unix path should be cyan. Spans: {}",
+        debug_spans(&result.highlighted[1])
+    );
+}
+
+#[test]
+fn test_stress_relative_path() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 17: "./cmd/server/main.go"
+    assert!(
+        has_span(&result.highlighted[17], "./cmd/server/main.go", Color::Cyan),
+        "Relative path should be cyan. Spans: {}",
+        debug_spans(&result.highlighted[17])
+    );
+}
+
+// --- HTTP methods and protocol ---
+
+#[test]
+fn test_stress_http_method_and_path() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 6: "GET" method
+    assert!(
+        has_span(&result.highlighted[6], "GET", Color::Magenta),
+        "GET should be magenta. Spans: {}",
+        debug_spans(&result.highlighted[6])
+    );
+    // Line 6: path
+    assert!(
+        has_span(&result.highlighted[6], "/api/v2/users", Color::Cyan),
+        "URL path should be cyan. Spans: {}",
+        debug_spans(&result.highlighted[6])
+    );
+}
+
+#[test]
+fn test_stress_http_version_not_highlighted() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 6: "HTTP/1.1" should NOT have "1.1" as a cyan number
+    let line = &result.highlighted[6];
+    let has_cyan_11 = line
+        .spans
+        .iter()
+        .any(|s| s.content.as_ref() == "1.1" && s.style.fg == Some(Color::Cyan));
+    assert!(
+        !has_cyan_11,
+        "HTTP/1.1 should not split '1.1' as cyan. Spans: {}",
+        debug_spans(line)
+    );
+}
+
+#[test]
+fn test_stress_post_method() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 24: "POST"
+    assert!(
+        has_span(&result.highlighted[24], "POST", Color::Magenta),
+        "POST should be magenta. Spans: {}",
+        debug_spans(&result.highlighted[24])
+    );
+}
+
+// --- Key=value pairs ---
+
+#[test]
+fn test_stress_key_value_pairs() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 9: multiple key=value pairs
+    assert!(
+        has_span(&result.highlighted[9], "hit_rate=", Color::Blue),
+        "key hit_rate= should be blue+bold. Spans: {}",
+        debug_spans(&result.highlighted[9])
+    );
+    assert!(
+        has_span(&result.highlighted[9], "evictions=", Color::Blue),
+        "key evictions= should be blue+bold. Spans: {}",
+        debug_spans(&result.highlighted[9])
+    );
+}
+
+#[test]
+fn test_stress_key_value_numeric_values() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 9: values after keys should be cyan numbers
+    assert!(
+        has_span(&result.highlighted[9], "0.95", Color::Cyan),
+        "hit_rate value 0.95 should be cyan. Spans: {}",
+        debug_spans(&result.highlighted[9])
+    );
+    assert!(
+        has_span(&result.highlighted[9], "1247", Color::Cyan),
+        "evictions value 1247 should be cyan. Spans: {}",
+        debug_spans(&result.highlighted[9])
+    );
+}
+
+// --- Quoted strings ---
+
+#[test]
+fn test_stress_quoted_string() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 13: "Connection reset by peer"
+    assert!(
+        has_span(
+            &result.highlighted[13],
+            "Connection reset by peer",
+            Color::Yellow
+        ),
+        "Quoted string should be yellow. Spans: {}",
+        debug_spans(&result.highlighted[13])
+    );
+}
+
+// --- Keywords (true/false/null/nil/undefined) ---
+
+#[test]
+fn test_stress_keyword_null() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 8: "null" in "value was null"
+    assert!(
+        has_span(&result.highlighted[8], "null", Color::LightRed),
+        "Keyword 'null' should be light red. Spans: {}",
+        debug_spans(&result.highlighted[8])
+    );
+}
+
+#[test]
+fn test_stress_keyword_true_false() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 26: "dark_mode=true beta_api=false legacy_auth=nil maintenance=undefined"
+    assert!(
+        has_span(&result.highlighted[26], "true", Color::LightRed),
+        "Keyword 'true' should be light red. Spans: {}",
+        debug_spans(&result.highlighted[26])
+    );
+    assert!(
+        has_span(&result.highlighted[26], "false", Color::LightRed),
+        "Keyword 'false' should be light red. Spans: {}",
+        debug_spans(&result.highlighted[26])
+    );
+    assert!(
+        has_span(&result.highlighted[26], "nil", Color::LightRed),
+        "Keyword 'nil' should be light red. Spans: {}",
+        debug_spans(&result.highlighted[26])
+    );
+    assert!(
+        has_span(&result.highlighted[26], "undefined", Color::LightRed),
+        "Keyword 'undefined' should be light red. Spans: {}",
+        debug_spans(&result.highlighted[26])
+    );
+}
+
+#[test]
+fn test_stress_keyword_in_json_body() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 14: JSON body with true, null
+    assert!(
+        has_span(&result.highlighted[14], "true", Color::LightRed),
+        "Keyword 'true' in JSON body should be light red. Spans: {}",
+        debug_spans(&result.highlighted[14])
+    );
+    assert!(
+        has_span(&result.highlighted[14], "null", Color::LightRed),
+        "Keyword 'null' in JSON body should be light red. Spans: {}",
+        debug_spans(&result.highlighted[14])
+    );
+}
+
+// --- Inline dates ---
+
+#[test]
+fn test_stress_inline_date() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 23: "2024-06-15T10:30:00Z" inline date (not the leading timestamp)
+    assert!(
+        has_span(&result.highlighted[23], "2024-06-15T10:30:00Z", Color::DarkGray),
+        "Inline date should be dark gray. Spans: {}",
+        debug_spans(&result.highlighted[23])
+    );
+}
+
+// --- Decimal number edge cases ---
+
+#[test]
+fn test_stress_sub_one_decimal() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 25: "0.5ms"
+    assert!(
+        has_span(&result.highlighted[25], "0.5ms", Color::Cyan),
+        "0.5ms should be single cyan span. Spans: {}",
+        debug_spans(&result.highlighted[25])
+    );
+}
+
+#[test]
+fn test_stress_large_number() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 14: "86400000" in JSON
+    assert!(
+        has_span(&result.highlighted[14], "86400000", Color::Cyan),
+        "Large number 86400000 should be cyan. Spans: {}",
+        debug_spans(&result.highlighted[14])
+    );
+}
+
+#[test]
+fn test_stress_decimal_amount() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 27: "199.99" — decimal number without unit
+    assert!(
+        has_span(&result.highlighted[27], "199.99", Color::Cyan),
+        "Decimal amount 199.99 should be cyan. Spans: {}",
+        debug_spans(&result.highlighted[27])
+    );
+}
+
+// --- Level badge is bold in plain format ---
+
+#[test]
+fn test_stress_fatal_is_bold() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 15: FATAL
+    assert!(
+        has_span_with_modifier(
+            &result.highlighted[15],
+            "FATAL",
+            Color::Red,
+            ratatui::style::Modifier::BOLD,
+        ),
+        "FATAL should be bold+red. Spans: {}",
+        debug_spans(&result.highlighted[15])
+    );
+}
+
+#[test]
+fn test_stress_trace_color() {
+    let result = pipeline("testdata/sample_stress.log");
+    // Line 27: TRACE — should use Indexed(243)
+    assert!(
+        has_color(&result.highlighted[27], Color::Indexed(243)),
+        "TRACE line should use Indexed(243). Spans: {}",
+        debug_spans(&result.highlighted[27])
+    );
+}
+
+// ===========================================================================
 // pipeline_from_lines: ad-hoc tests without files
 // ===========================================================================
 

@@ -1,0 +1,31 @@
+2024-06-15 09:00:00 INFO Application v3.12.1 started on 0.0.0.0:8080
+2024-06-15 09:00:01 DEBUG Loaded 42 config keys from /etc/myapp/config.yaml in 3.5ms
+2024-06-15 09:00:02 INFO Connected to postgres at 10.0.0.5:5432 and redis at 10.0.0.6:6379
+2024-06-15 09:00:03 WARN Memory usage at 87% (3.5GB/4GB) — approaching limit
+2024-06-15 09:00:04 ERROR Failed to reach upstream at https://api.example.com/v2/users?limit=100&offset=0 after 30s
+2024-06-15 09:00:05 DEBUG Request id=f47ac10b-58cc-4372-a567-0e02b2c3d479 from 192.168.1.100 took 2.3ms
+2024-06-15 09:00:06 INFO GET /api/v2/users HTTP/1.1 200 4521 in 12ms
+2024-06-15 09:00:07 WARN Certificate for api.example.com expires in 7d
+2024-06-15 09:00:08 ERROR Null pointer at 0xc0001a2000 in goroutine 42: value was null
+2024-06-15 09:00:09 INFO Cache stats: hit_rate=0.95 miss_rate=0.05 evictions=1247 ttl=300s
+2024-06-15 09:00:10 DEBUG DNS resolved api.example.com to 2001:0db8:85a3:0000:0000:8a2e:0370:7334
+2024-06-15 09:00:11 INFO Processing batch: 1500 items, 23.7MB payload, estimated 45s remaining
+2024-06-15 09:00:12 WARN Disk usage at 92% — only 12GB of 150GB free
+2024-06-15 09:00:13 ERROR Connection to db01.internal:5432 refused: "Connection reset by peer"
+2024-06-15 09:00:14 DEBUG Response body: {"status":"ok","healthy":true,"cache":null,"version":"2.0.0","uptime_ms":86400000}
+2024-06-15 09:00:15 FATAL Unrecoverable error: out of memory — OOM killed pid 4200
+2024-06-15 09:00:16 INFO  Deployed artifact myapp-v2.4.1-linux-amd64.tar.gz (15.7MB) in 4.2s
+2024-06-15 09:00:17 DEBUG Stack: main.handleRequest(0xc0001a2000) at ./cmd/server/main.go:142
+2024-06-15 09:00:18 WARN  Slow query: SELECT * FROM orders WHERE user_id=42 AND status="pending" (2341ms)
+2024-06-15 09:00:19 INFO Listening on [::]:8443 and 0.0.0.0:8080
+2024-06-15 09:00:20 ERROR Rate limited by upstream: 429 Too Many Requests, retry_after=60s
+2024-06-15 09:00:21 DEBUG TLS handshake with 172.16.0.50:443 completed in 45ms, cipher=TLS_AES_256_GCM_SHA384
+2024-06-15 09:00:22 INFO Worker pool: active=8 idle=4 max=16 queue_depth=0
+2024-06-15 09:00:23 WARN  Token expires at 2024-06-15T10:30:00Z for session abc-123-def
+2024-06-15 09:00:24 ERROR Retry 3/5 failed for POST /api/v2/webhooks: timeout after 30000ms
+2024-06-15 09:00:25 INFO Request from ::1 (loopback) completed in 0.5ms
+2024-06-15 09:00:26 DEBUG Feature flags: dark_mode=true beta_api=false legacy_auth=nil maintenance=undefined
+2024-06-15 09:00:27 TRACE Entering function processOrder(orderId="ORD-2024-98765", userId=42, amount=199.99)
+2024-06-15 09:00:28 INFO Migrated 10000 rows from users_old to users_new in 12.5s (800 rows/s)
+2024-06-15 09:00:29 ERROR Panic in handler: index out of range [5] with length 3 at 0xdeadbeef
+2024-06-15 09:00:30 WARN  Health check degraded: postgres=true redis=false rabbitmq=true
