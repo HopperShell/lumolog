@@ -808,9 +808,9 @@ pub fn token_at_position(
                 let text_col = abs_char_pos - prefix_width;
 
                 let base_style = Style::default();
-                let text_to_tokenize = get_tokenizable_text(parsed);
+                let text_to_tokenize = get_clickable_text(parsed);
                 let ts_prefix_len = get_timestamp_prefix_len(parsed);
-                let tokens = tokenize_with_metadata(text_to_tokenize, base_style);
+                let tokens = tokenize_with_metadata(&text_to_tokenize, base_style);
 
                 let extra_prefix = get_highlight_prefix_len(parsed);
                 let adjusted_col = if text_col >= extra_prefix + ts_prefix_len {
@@ -833,9 +833,9 @@ pub fn token_at_position(
         if click_row < visible.len() {
             let (_line_num, parsed) = &visible[click_row];
             let base_style = Style::default();
-            let text_to_tokenize = get_tokenizable_text(parsed);
+            let text_to_tokenize = get_clickable_text(parsed);
             let ts_prefix_len = get_timestamp_prefix_len(parsed);
-            let tokens = tokenize_with_metadata(text_to_tokenize, base_style);
+            let tokens = tokenize_with_metadata(&text_to_tokenize, base_style);
 
             let extra_prefix = get_highlight_prefix_len(parsed);
             let adjusted_col = if text_col >= extra_prefix + ts_prefix_len {
@@ -867,23 +867,37 @@ fn find_token_at_col(
     None
 }
 
-/// Get the text that `tokenize_with_patterns` is called with for a parsed line.
-fn get_tokenizable_text(parsed: &crate::parser::ParsedLine) -> &str {
+/// Get the full clickable text for a parsed line, including extra fields.
+/// For structured formats, this is message + "  " + extras (matching what the highlighter renders).
+fn get_clickable_text(parsed: &crate::parser::ParsedLine) -> String {
     match parsed.format {
         LogFormat::Json
         | LogFormat::Logfmt
         | LogFormat::Klog
         | LogFormat::Log4j
         | LogFormat::PythonLog
-        | LogFormat::AccessLog => &parsed.message,
+        | LogFormat::AccessLog => {
+            let mut text = parsed.message.clone();
+            if !parsed.extra_fields.is_empty() {
+                text.push_str("  ");
+                let extras: String = parsed
+                    .extra_fields
+                    .iter()
+                    .map(|(k, v)| format!("{}={}", k, v))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                text.push_str(&extras);
+            }
+            text
+        }
         LogFormat::Plain | LogFormat::Syslog => {
             if let Some(ref ts) = parsed.timestamp {
                 if let Some(pos) = parsed.raw.find(ts.as_str()) {
                     let ts_end = pos + ts.len();
-                    return &parsed.raw[ts_end..];
+                    return parsed.raw[ts_end..].to_string();
                 }
             }
-            &parsed.raw
+            parsed.raw.clone()
         }
     }
 }
