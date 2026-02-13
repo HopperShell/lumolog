@@ -9,7 +9,9 @@
 
 <p align="center">
   <a href="https://github.com/HopperShell/lumolog/actions/workflows/ci.yml"><img src="https://github.com/HopperShell/lumolog/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/HopperShell/lumolog/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/audit-passing-green.svg" alt="Security Audit"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-1.85%2B-orange.svg" alt="Rust 1.85+"></a>
 </p>
 
 <p align="center">
