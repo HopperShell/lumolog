@@ -31,8 +31,19 @@ Most log viewers just make text pretty. Lumolog *understands* your logs — it k
 
 ### Install
 
+**1. Install Rust (if you don't have it):**
+
 ```bash
-# From source (requires Rust 1.85+)
+# macOS / Linux / WSL
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Windows (download and run the installer)
+# https://win.rustup.rs/x86_64
+```
+
+**2. Build and install lumolog:**
+
+```bash
 git clone https://github.com/HopperShell/lumolog.git
 cd lumolog
 cargo install --path .
