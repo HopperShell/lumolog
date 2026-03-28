@@ -101,7 +101,8 @@ pub fn build_system_prompt(
 /// Build prompts for analyze mode — the AI reads actual log content and answers a question.
 /// Returns (system_prompt, user_message).
 pub fn build_analyze_prompt(user_question: &str, log_lines: &[String]) -> (String, String) {
-    let system = "You are a log analysis expert. The user will show you log lines and ask a question.\n\
+    let system =
+        "You are a log analysis expert. The user will show you log lines and ask a question.\n\
         Analyze the logs carefully and provide a clear, concise response. Focus on:\n\
         - Patterns and trends you observe\n\
         - Errors, anomalies, or concerning behavior\n\
@@ -110,7 +111,7 @@ pub fn build_analyze_prompt(user_question: &str, log_lines: &[String]) -> (Strin
         - A brief summary of what the logs show\n\n\
         Be specific — reference actual log content, timestamps, and error messages.\n\
         Keep your response concise and actionable."
-        .to_string();
+            .to_string();
 
     let mut user_msg = format!("Here are {} log lines:\n\n", log_lines.len());
     for line in log_lines {
@@ -234,7 +235,10 @@ pub fn query_ai(
     system_prompt: &str,
     user_query: &str,
 ) -> Result<String, String> {
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(300))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
 
     match config.provider {
         AiProvider::Claude => query_claude(&client, config, system_prompt, user_query),
