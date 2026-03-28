@@ -230,24 +230,19 @@ struct OpenAiResponse {
 // -- Public query function -------------------------------------------------
 
 /// Send a query to the configured AI provider and return the response text.
+/// Uses ureq for simple, truly synchronous HTTP — no async runtime needed.
 pub fn query_ai(
     config: &AiConfig,
     system_prompt: &str,
     user_query: &str,
 ) -> Result<String, String> {
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(300))
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
-
     match config.provider {
-        AiProvider::Claude => query_claude(&client, config, system_prompt, user_query),
-        AiProvider::OpenAi => query_openai(&client, config, system_prompt, user_query),
+        AiProvider::Claude => query_claude(config, system_prompt, user_query),
+        AiProvider::OpenAi => query_openai(config, system_prompt, user_query),
     }
 }
 
 fn query_claude(
-    client: &reqwest::blocking::Client,
     config: &AiConfig,
     system_prompt: &str,
     user_query: &str,
@@ -263,24 +258,19 @@ fn query_claude(
         }],
     };
 
-    let resp = client
-        .post(&url)
+    let mut resp = ureq::post(&url)
         .header("x-api-key", &config.api_key)
         .header("anthropic-version", "2023-06-01")
-        .header("content-type", "application/json")
-        .json(&body)
-        .send()
+        .send_json(&body)
         .map_err(|e| format!("HTTP request failed: {e}"))?;
 
-    if !resp.status().is_success() {
-        let status = resp.status();
-        let text = resp.text().unwrap_or_default();
-        return Err(format!("Claude API error ({status}): {text}"));
-    }
+    let text = resp
+        .body_mut()
+        .read_to_string()
+        .map_err(|e| format!("Failed to read response: {e}"))?;
 
-    let parsed: ClaudeResponse = resp
-        .json()
-        .map_err(|e| format!("Failed to parse Claude response: {e}"))?;
+    let parsed: ClaudeResponse =
+        serde_json::from_str(&text).map_err(|e| format!("Failed to parse Claude response: {e}"))?;
 
     parsed
         .content
@@ -290,7 +280,6 @@ fn query_claude(
 }
 
 fn query_openai(
-    client: &reqwest::blocking::Client,
     config: &AiConfig,
     system_prompt: &str,
     user_query: &str,
@@ -311,26 +300,23 @@ fn query_openai(
         ],
     };
 
-    let mut req = client.post(&url).header("content-type", "application/json");
+    let mut req = ureq::post(&url);
 
     if !config.api_key.is_empty() {
-        req = req.header("authorization", format!("Bearer {}", config.api_key));
+        req = req.header("authorization", &format!("Bearer {}", config.api_key));
     }
 
-    let resp = req
-        .json(&body)
-        .send()
+    let mut resp = req
+        .send_json(&body)
         .map_err(|e| format!("HTTP request failed: {e}"))?;
 
-    if !resp.status().is_success() {
-        let status = resp.status();
-        let text = resp.text().unwrap_or_default();
-        return Err(format!("OpenAI API error ({status}): {text}"));
-    }
+    let text = resp
+        .body_mut()
+        .read_to_string()
+        .map_err(|e| format!("Failed to read response: {e}"))?;
 
-    let parsed: OpenAiResponse = resp
-        .json()
-        .map_err(|e| format!("Failed to parse OpenAI response: {e}"))?;
+    let parsed: OpenAiResponse =
+        serde_json::from_str(&text).map_err(|e| format!("Failed to parse OpenAI response: {e}"))?;
 
     let msg = parsed
         .choices

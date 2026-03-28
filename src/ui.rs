@@ -290,7 +290,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     }
 
     if let Some(err) = app.ai_error() {
-        let short_err = if err.len() > 40 { &err[..40] } else { err };
+        let short_err = if err.len() > 80 { &err[..80] } else { err };
         status_parts.push(format!("AI err: {}", short_err));
     }
 
