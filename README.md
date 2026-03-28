@@ -152,6 +152,36 @@ To extract multiple lines at once, apply a filter first — use `/` to search or
 
 ![Filtering logs then pressing Shift+Y to yank all filtered lines to clipboard at once](assets/big-yank.gif)
 
+### AI-Powered Query & Analysis
+
+Lumolog can connect to any LLM — cloud (Claude, OpenAI) or local (Ollama, LM Studio, llama.cpp) — for natural language log querying and analysis.
+
+**Natural language filtering** — press `a` and type plain English like "show me payment failures" or "find database timeouts in the last hour". The AI translates your query into lumolog's existing filters using actual log vocabulary.
+
+**Log analysis** — narrow your logs with filters, then press `A` to send them to the AI with a question. Ask "what's causing these errors?", "any patterns here?", or "summarize what happened". The response appears in a scrollable overlay.
+
+```bash
+# Use with Ollama
+lumolog --ai-provider=ollama app.log
+
+# Use with LM Studio or any OpenAI-compatible server
+lumolog --ai-provider=openai --ai-endpoint=http://127.0.0.1:1234/v1 --ai-model=your-model app.log
+
+# Use with Claude API
+ANTHROPIC_API_KEY=sk-... lumolog --ai-provider=claude app.log
+```
+
+When an AI backend is configured, an `AI` indicator appears in the status bar. Without configuration, the feature is completely invisible — lumolog works exactly as before.
+
+Configuration via CLI flags or environment variables:
+
+| Setting | CLI Flag | Env Var |
+|---------|----------|---------|
+| Provider | `--ai-provider=claude\|openai\|ollama` | `LUMOLOG_AI_PROVIDER` |
+| Endpoint | `--ai-endpoint=URL` | `LUMOLOG_AI_ENDPOINT` |
+| Model | `--ai-model=NAME` | `LUMOLOG_AI_MODEL` |
+| API Key | — | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` |
+
 ### Command Palette
 
 Press `?` to open a fuzzy-searchable command palette showing every available action with its keybinding. Type to filter, arrow keys to select, `Enter` to execute.
@@ -216,6 +246,8 @@ Patterns are matched in priority order — a URL won't have its path highlighted
 | `w` | Toggle line wrap |
 | `t` | Enter time range mode |
 | `Enter` | Enter cursor mode |
+| `a` | AI query (natural language filter) |
+| `A` | AI analyze (send filtered logs to AI) |
 | `?` | Open command palette |
 | `Esc` | Clear active filter (similar > time > text) |
 | `q` | Quit |
@@ -255,6 +287,16 @@ Patterns are matched in priority order — a URL won't have its path highlighted
 | `4` | Last 24 hours |
 | `c` | Clear time range |
 | `Esc` | Exit time mode |
+
+### AI Analysis Overlay
+
+| Key | Action |
+|-----|--------|
+| `j` / `Down` | Scroll down |
+| `k` / `Up` | Scroll up |
+| `Space` / `PgDn` | Page down |
+| `PgUp` | Page up |
+| `Esc` / `q` | Close overlay |
 
 ### Mouse
 
