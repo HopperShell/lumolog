@@ -1,4 +1,5 @@
-use lumolog::ai::{build_system_prompt, parse_ai_response};
+use lumolog::ai::{AiFilterResponse, build_system_prompt, parse_ai_response};
+use lumolog::app::App;
 
 #[test]
 fn test_parse_full_response() {
@@ -58,4 +59,56 @@ fn test_build_system_prompt_no_fields_no_time() {
     assert!(prompt.contains("Log format: Plain"));
     assert!(prompt.contains("none detected"));
     assert!(!prompt.contains("Time range of log"));
+}
+
+#[test]
+fn test_apply_ai_filter_text_only() {
+    let lines = vec![
+        "2026-03-27T10:00:00 INFO auth login successful".to_string(),
+        "2026-03-27T10:00:01 ERROR auth login failed".to_string(),
+        "2026-03-27T10:00:02 INFO server started".to_string(),
+    ];
+    let mut app = App::new(lines);
+
+    let response = AiFilterResponse {
+        text: Some("auth".to_string()),
+        min_level: None,
+        time_range: None,
+    };
+    app.apply_ai_filter(&response);
+
+    assert_eq!(app.total_lines(), 2);
+}
+
+#[test]
+fn test_apply_ai_filter_level_only() {
+    let lines = vec![
+        "2026-03-27T10:00:00 INFO all good".to_string(),
+        "2026-03-27T10:00:01 ERROR something broke".to_string(),
+        "2026-03-27T10:00:02 WARN watch out".to_string(),
+    ];
+    let mut app = App::new(lines);
+
+    let response = AiFilterResponse {
+        text: None,
+        min_level: Some("ERROR".to_string()),
+        time_range: None,
+    };
+    app.apply_ai_filter(&response);
+
+    assert_eq!(app.total_lines(), 1);
+}
+
+#[test]
+fn test_apply_ai_filter_empty_response() {
+    let lines = vec![
+        "2026-03-27T10:00:00 INFO hello".to_string(),
+        "2026-03-27T10:00:01 ERROR world".to_string(),
+    ];
+    let mut app = App::new(lines);
+
+    let response = AiFilterResponse::default();
+    app.apply_ai_filter(&response);
+
+    assert_eq!(app.total_lines(), 2);
 }

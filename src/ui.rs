@@ -19,7 +19,11 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
     app.tick_yank_flash();
 
-    let filter_height = if app.is_filter_mode() { 1 } else { 0 };
+    let filter_height = if app.is_filter_mode() || app.mode() == AppMode::Ask {
+        1
+    } else {
+        0
+    };
     let sparkline_height: u16 = if !app.is_sparkline_visible() {
         0
     } else if app.mode() == AppMode::TimeRange {
@@ -183,6 +187,21 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         frame.render_widget(filter_bar, filter_area);
     }
 
+    // Render ask bar if in ask mode
+    if app.mode() == AppMode::Ask {
+        let spans = vec![
+            Span::styled(
+                "ask: ",
+                Style::default()
+                    .fg(Color::Magenta)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(app.ask_input(), Style::default().fg(Color::White)),
+        ];
+        let ask_bar = Paragraph::new(Line::from(spans));
+        frame.render_widget(ask_bar, filter_area);
+    }
+
     // Stats bar
     if stats_height > 0 {
         render_stats_bar(frame, app, stats_area, &level_counts);
@@ -248,37 +267,79 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         ));
     }
 
+    if app.is_ai_thinking() {
+        status_parts.push("AI thinking...".to_string());
+    } else if app.is_ai_connected() {
+        status_parts.push("AI".to_string());
+    }
+
+    if let Some(err) = app.ai_error() {
+        let short_err = if err.len() > 40 { &err[..40] } else { err };
+        status_parts.push(format!("AI err: {}", short_err));
+    }
+
     status_parts.push(format!("{}%", pct));
 
     let status_text = status_parts.join(" | ");
 
-    // Build styled status bar with colored level indicator
-    let status = if let Some(min_level) = app.min_level() {
-        let level_label = format!("Level: {}+", min_level.short_name());
-        let level_color = match min_level {
-            LogLevel::Fatal => Color::Red,
-            LogLevel::Error => Color::Red,
-            LogLevel::Warn => Color::Yellow,
-            LogLevel::Info => Color::Green,
-            LogLevel::Debug | LogLevel::Trace => Color::DarkGray,
-        };
-        // Find where the level part is in the status text and colorize just that part
-        if let Some(pos) = status_text.find(&level_label) {
-            let before = &status_text[..pos];
-            let after = &status_text[pos + level_label.len()..];
-            Paragraph::new(Line::from(vec![
-                Span::styled(before, Style::default().fg(Color::Black).bg(Color::White)),
-                Span::styled(
-                    level_label,
+    // Build styled status bar with colored indicators
+    let base_style = Style::default().fg(Color::Black).bg(Color::White);
+    let status = {
+        let mut spans: Vec<Span> = Vec::new();
+        let mut remaining = status_text.as_str();
+
+        // Colorize known labels within the status text
+        if let Some(min_level) = app.min_level() {
+            let level_label = format!("Level: {}+", min_level.short_name());
+            let level_color = match min_level {
+                LogLevel::Fatal | LogLevel::Error => Color::Red,
+                LogLevel::Warn => Color::Yellow,
+                LogLevel::Info => Color::Green,
+                LogLevel::Debug | LogLevel::Trace => Color::DarkGray,
+            };
+            // We can't store the label in colorized since it's a String, so handle inline
+            if let Some(pos) = remaining.find(&level_label) {
+                if pos > 0 {
+                    spans.push(Span::styled(remaining[..pos].to_string(), base_style));
+                }
+                spans.push(Span::styled(
+                    level_label.clone(),
                     Style::default().fg(level_color).bg(Color::White),
-                ),
-                Span::styled(after, Style::default().fg(Color::Black).bg(Color::White)),
-            ]))
-        } else {
-            Paragraph::new(status_text).style(Style::default().fg(Color::Black).bg(Color::White))
+                ));
+                remaining = &remaining[pos + level_label.len()..];
+            }
         }
-    } else {
-        Paragraph::new(status_text).style(Style::default().fg(Color::Black).bg(Color::White))
+
+        let ai_label = if app.is_ai_thinking() {
+            Some(("AI thinking...", Color::Yellow))
+        } else if app.is_ai_connected() {
+            Some(("AI", Color::Magenta))
+        } else {
+            None
+        };
+
+        if let Some((label, color)) = ai_label
+            && let Some(pos) = remaining.find(label)
+        {
+            if pos > 0 {
+                spans.push(Span::styled(remaining[..pos].to_string(), base_style));
+            }
+            spans.push(Span::styled(
+                label.to_string(),
+                Style::default().fg(color).bg(Color::White),
+            ));
+            remaining = &remaining[pos + label.len()..];
+        }
+
+        if !remaining.is_empty() {
+            spans.push(Span::styled(remaining.to_string(), base_style));
+        }
+
+        if spans.is_empty() {
+            Paragraph::new(status_text).style(base_style)
+        } else {
+            Paragraph::new(Line::from(spans))
+        }
     };
 
     frame.render_widget(status, status_area);
@@ -598,7 +659,11 @@ pub fn stats_level_at_position(app: &App, column: u16, row: u16, area: Rect) -> 
         return None;
     }
 
-    let filter_height = if app.is_filter_mode() { 1 } else { 0 };
+    let filter_height = if app.is_filter_mode() || app.mode() == AppMode::Ask {
+        1
+    } else {
+        0
+    };
     let sparkline_height: u16 = if !app.is_sparkline_visible() {
         0
     } else if app.mode() == AppMode::TimeRange {

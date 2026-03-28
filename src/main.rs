@@ -18,6 +18,7 @@ use crossterm::execute;
 use source::{FileSource, FollowableSource, FollowableStdinSource};
 use std::io::IsTerminal;
 use std::path::PathBuf;
+use std::sync::mpsc;
 use std::time::Duration;
 
 enum FollowSource {
@@ -163,9 +164,7 @@ fn main() -> anyhow::Result<()> {
                 "claude" => ai::AiProvider::Claude,
                 "openai" | "ollama" => ai::AiProvider::OpenAi,
                 other => {
-                    eprintln!(
-                        "Unknown AI provider: {other}. Use 'claude', 'openai', or 'ollama'."
-                    );
+                    eprintln!("Unknown AI provider: {other}. Use 'claude', 'openai', or 'ollama'.");
                     std::process::exit(1);
                 }
             };
@@ -315,6 +314,10 @@ fn run_event_loop(
     follow_source: &mut Option<FollowSource>,
     ai_config: Option<ai::AiConfig>,
 ) -> anyhow::Result<()> {
+    // Channel for receiving AI query results from background thread
+    let (ai_tx, ai_rx) = mpsc::channel::<Result<String, String>>();
+    let ai_config = ai_config.map(std::sync::Arc::new);
+
     app.set_ai_connected(ai_config.is_some());
     loop {
         terminal.draw(|frame| ui::render(frame, app))?;
@@ -372,6 +375,62 @@ fn run_event_loop(
                             }
                             KeyCode::Esc => app.close_context_menu(),
                             _ => app.close_context_menu(),
+                        }
+                    } else if app.mode() == AppMode::Ask {
+                        match key.code {
+                            KeyCode::Esc => app.exit_ask_mode(),
+                            KeyCode::Backspace => app.ask_backspace(),
+                            KeyCode::Char(c) => app.ask_type(c),
+                            KeyCode::Enter => {
+                                let query = app.ask_input().to_string();
+                                if !query.is_empty()
+                                    && let Some(ref config) = ai_config
+                                {
+                                    app.set_ai_thinking(true);
+                                    app.exit_ask_mode();
+
+                                    let format_name = match app.format() {
+                                        parser::LogFormat::Json => "JSON",
+                                        parser::LogFormat::Syslog => "Syslog",
+                                        parser::LogFormat::Logfmt => "Logfmt",
+                                        parser::LogFormat::Klog => "Klog",
+                                        parser::LogFormat::Log4j => "Log4j",
+                                        parser::LogFormat::PythonLog => "Python",
+                                        parser::LogFormat::AccessLog => "Access",
+                                        parser::LogFormat::Plain => "Plain",
+                                    };
+
+                                    let field_names: Vec<String> = app
+                                        .visible_parsed_lines_numbered()
+                                        .iter()
+                                        .flat_map(|(_, pl)| {
+                                            pl.extra_fields.iter().map(|(k, _)| k.clone())
+                                        })
+                                        .collect::<std::collections::BTreeSet<_>>()
+                                        .into_iter()
+                                        .collect();
+
+                                    let time_desc = app.time_index().and_then(|idx| {
+                                        let min = idx.min_ts?;
+                                        let max = idx.max_ts?;
+                                        Some(format!("{} to {}", min, max))
+                                    });
+
+                                    let system_prompt = ai::build_system_prompt(
+                                        format_name,
+                                        &field_names,
+                                        time_desc.as_deref(),
+                                    );
+
+                                    let config = config.clone();
+                                    let tx = ai_tx.clone();
+                                    std::thread::spawn(move || {
+                                        let result = ai::query_ai(&config, &system_prompt, &query);
+                                        let _ = tx.send(result);
+                                    });
+                                }
+                            }
+                            _ => {}
                         }
                     } else if app.is_cursor_mode() {
                         match key.code {
@@ -433,6 +492,9 @@ fn run_event_loop(
                                 dispatch_action(command::Action::YankAllFiltered, app)
                             }
                             KeyCode::Char('t') => app.enter_time_mode(),
+                            KeyCode::Char('a') if app.is_ai_connected() => {
+                                app.enter_ask_mode();
+                            }
                             KeyCode::Char('?') => app.open_palette(),
                             KeyCode::Enter => app.enter_cursor_mode(),
                             _ => {}
@@ -548,6 +610,27 @@ fn run_event_loop(
             };
             if !new_lines.is_empty() {
                 app.append_lines(new_lines);
+            }
+        }
+
+        // Poll for AI query results
+        if app.is_ai_thinking()
+            && let Ok(result) = ai_rx.try_recv()
+        {
+            app.set_ai_thinking(false);
+            match result {
+                Ok(raw_response) => match ai::parse_ai_response(&raw_response) {
+                    Ok(filter_response) => {
+                        app.set_ai_error(None);
+                        app.apply_ai_filter(&filter_response);
+                    }
+                    Err(e) => {
+                        app.set_ai_error(Some(e));
+                    }
+                },
+                Err(e) => {
+                    app.set_ai_error(Some(e));
+                }
             }
         }
 

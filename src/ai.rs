@@ -168,7 +168,11 @@ struct OpenAiResponse {
 // -- Public query function -------------------------------------------------
 
 /// Send a query to the configured AI provider and return the response text.
-pub fn query_ai(config: &AiConfig, system_prompt: &str, user_query: &str) -> Result<String, String> {
+pub fn query_ai(
+    config: &AiConfig,
+    system_prompt: &str,
+    user_query: &str,
+) -> Result<String, String> {
     let client = reqwest::blocking::Client::new();
 
     match config.provider {
@@ -242,9 +246,7 @@ fn query_openai(
         ],
     };
 
-    let mut req = client
-        .post(&url)
-        .header("content-type", "application/json");
+    let mut req = client.post(&url).header("content-type", "application/json");
 
     if !config.api_key.is_empty() {
         req = req.header("authorization", format!("Bearer {}", config.api_key));
