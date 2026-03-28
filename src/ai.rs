@@ -98,6 +98,30 @@ pub fn build_system_prompt(
     prompt
 }
 
+/// Build prompts for analyze mode — the AI reads actual log content and answers a question.
+/// Returns (system_prompt, user_message).
+pub fn build_analyze_prompt(user_question: &str, log_lines: &[String]) -> (String, String) {
+    let system = "You are a log analysis expert. The user will show you log lines and ask a question.\n\
+        Analyze the logs carefully and provide a clear, concise response. Focus on:\n\
+        - Patterns and trends you observe\n\
+        - Errors, anomalies, or concerning behavior\n\
+        - Correlations between events\n\
+        - Potential root causes if errors are present\n\
+        - A brief summary of what the logs show\n\n\
+        Be specific — reference actual log content, timestamps, and error messages.\n\
+        Keep your response concise and actionable."
+        .to_string();
+
+    let mut user_msg = format!("Here are {} log lines:\n\n", log_lines.len());
+    for line in log_lines {
+        user_msg.push_str(line);
+        user_msg.push('\n');
+    }
+    user_msg.push_str(&format!("\nQuestion: {user_question}"));
+
+    (system, user_msg)
+}
+
 // ---------------------------------------------------------------------------
 // AI backend: provider config and HTTP communication
 // ---------------------------------------------------------------------------

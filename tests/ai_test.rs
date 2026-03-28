@@ -1,4 +1,4 @@
-use lumolog::ai::{AiFilterResponse, build_system_prompt, parse_ai_response};
+use lumolog::ai::{AiFilterResponse, build_analyze_prompt, build_system_prompt, parse_ai_response};
 use lumolog::app::App;
 
 #[test]
@@ -124,4 +124,25 @@ fn test_apply_ai_filter_empty_response() {
     app.apply_ai_filter(&response);
 
     assert_eq!(app.total_lines(), 2);
+}
+
+#[test]
+fn test_build_analyze_prompt() {
+    let lines = vec![
+        "2026-03-27T10:00:00 ERROR auth login failed".to_string(),
+        "2026-03-27T10:00:01 ERROR auth login failed".to_string(),
+    ];
+    let (system, user_msg) = build_analyze_prompt("what's wrong?", &lines);
+    assert!(system.contains("log analysis expert"));
+    assert!(user_msg.contains("2 log lines"));
+    assert!(user_msg.contains("auth login failed"));
+    assert!(user_msg.contains("what's wrong?"));
+}
+
+#[test]
+fn test_build_analyze_prompt_empty_lines() {
+    let (system, user_msg) = build_analyze_prompt("summarize", &[]);
+    assert!(system.contains("log analysis expert"));
+    assert!(user_msg.contains("0 log lines"));
+    assert!(user_msg.contains("summarize"));
 }
