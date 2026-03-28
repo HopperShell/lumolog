@@ -21,6 +21,11 @@ use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::Duration;
 
+enum AiResult {
+    Filter(Result<String, String>),
+    Analyze(Result<String, String>),
+}
+
 enum FollowSource {
     File(FollowableSource),
     Stdin(FollowableStdinSource),
@@ -316,7 +321,7 @@ fn run_event_loop(
     ai_config: Option<ai::AiConfig>,
 ) -> anyhow::Result<()> {
     // Channel for receiving AI query results from background thread
-    let (ai_tx, ai_rx) = mpsc::channel::<Result<String, String>>();
+    let (ai_tx, ai_rx) = mpsc::channel::<AiResult>();
     let ai_config = ai_config.map(std::sync::Arc::new);
 
     app.set_ai_connected(ai_config.is_some());
@@ -328,7 +333,16 @@ fn run_event_loop(
         if event::poll(Duration::from_millis(50))? {
             match event::read()? {
                 Event::Key(key) if key.kind == KeyEventKind::Press => {
-                    if app.mode() == AppMode::CommandPalette {
+                    if app.analyze_response().is_some() {
+                        match key.code {
+                            KeyCode::Esc | KeyCode::Char('q') => app.clear_analyze_response(),
+                            KeyCode::Down | KeyCode::Char('j') => app.analyze_scroll_down(1),
+                            KeyCode::Up | KeyCode::Char('k') => app.analyze_scroll_up(1),
+                            KeyCode::PageDown | KeyCode::Char(' ') => app.analyze_scroll_down(10),
+                            KeyCode::PageUp => app.analyze_scroll_up(10),
+                            _ => {}
+                        }
+                    } else if app.mode() == AppMode::CommandPalette {
                         match key.code {
                             KeyCode::Esc => app.close_palette(),
                             KeyCode::Up => app.palette_up(),
@@ -430,7 +444,40 @@ fn run_event_loop(
                                     let tx = ai_tx.clone();
                                     std::thread::spawn(move || {
                                         let result = ai::query_ai(&config, &system_prompt, &query);
-                                        let _ = tx.send(result);
+                                        let _ = tx.send(AiResult::Filter(result));
+                                    });
+                                }
+                            }
+                            _ => {}
+                        }
+                    } else if app.mode() == AppMode::Analyze {
+                        match key.code {
+                            KeyCode::Esc => app.exit_analyze_mode(),
+                            KeyCode::Backspace => app.analyze_backspace(),
+                            KeyCode::Char(c) => app.analyze_type(c),
+                            KeyCode::Enter => {
+                                let question = app.analyze_input().to_string();
+                                if !question.is_empty()
+                                    && let Some(ref config) = ai_config
+                                {
+                                    let log_lines: Vec<String> = app
+                                        .all_filtered_lines_raw()
+                                        .lines()
+                                        .map(|s| s.to_string())
+                                        .collect();
+
+                                    let (system_prompt, user_msg) =
+                                        ai::build_analyze_prompt(&question, &log_lines);
+
+                                    app.set_ai_thinking(true);
+                                    app.exit_analyze_mode();
+
+                                    let config = config.clone();
+                                    let tx = ai_tx.clone();
+                                    std::thread::spawn(move || {
+                                        let result =
+                                            ai::query_ai(&config, &system_prompt, &user_msg);
+                                        let _ = tx.send(AiResult::Analyze(result));
                                     });
                                 }
                             }
@@ -498,6 +545,9 @@ fn run_event_loop(
                             KeyCode::Char('t') => app.enter_time_mode(),
                             KeyCode::Char('a') if app.is_ai_connected() => {
                                 app.enter_ask_mode();
+                            }
+                            KeyCode::Char('A') if app.is_ai_connected() => {
+                                app.enter_analyze_mode();
                             }
                             KeyCode::Char('?') => app.open_palette(),
                             KeyCode::Enter => app.enter_cursor_mode(),
@@ -623,18 +673,23 @@ fn run_event_loop(
         {
             app.set_ai_thinking(false);
             match result {
-                Ok(raw_response) => match ai::parse_ai_response(&raw_response) {
-                    Ok(filter_response) => {
-                        app.set_ai_error(None);
-                        app.apply_ai_filter(&filter_response);
-                    }
-                    Err(e) => {
-                        app.set_ai_error(Some(e));
-                    }
+                AiResult::Filter(res) => match res {
+                    Ok(raw_response) => match ai::parse_ai_response(&raw_response) {
+                        Ok(filter_response) => {
+                            app.set_ai_error(None);
+                            app.apply_ai_filter(&filter_response);
+                        }
+                        Err(e) => app.set_ai_error(Some(e)),
+                    },
+                    Err(e) => app.set_ai_error(Some(e)),
                 },
-                Err(e) => {
-                    app.set_ai_error(Some(e));
-                }
+                AiResult::Analyze(res) => match res {
+                    Ok(text) => {
+                        app.set_ai_error(None);
+                        app.set_analyze_response(text.trim().to_string());
+                    }
+                    Err(e) => app.set_ai_error(Some(e)),
+                },
             }
         }
 
