@@ -156,6 +156,8 @@ To extract multiple lines at once, apply a filter first — use `/` to search or
 
 Lumolog can connect to any LLM — cloud (Claude, OpenAI) or local (Ollama, LM Studio, llama.cpp) — for natural language log querying and analysis.
 
+![AI analysis overlay showing payment system issues detected in filtered logs](assets/ai-features.svg)
+
 **Natural language filtering** — press `a` and type plain English like "show me payment failures" or "find database timeouts in the last hour". The AI translates your query into lumolog's existing filters using actual log vocabulary.
 
 **Log analysis** — narrow your logs with filters, then press `A` to send them to the AI with a question. Ask "what's causing these errors?", "any patterns here?", or "summarize what happened". The response appears in a scrollable overlay.
