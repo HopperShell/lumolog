@@ -19,11 +19,12 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
     app.tick_yank_flash();
 
-    let filter_height = if app.is_filter_mode() || app.mode() == AppMode::Ask {
-        1
-    } else {
-        0
-    };
+    let filter_height =
+        if app.is_filter_mode() || app.mode() == AppMode::Ask || app.mode() == AppMode::Analyze {
+            1
+        } else {
+            0
+        };
     let sparkline_height: u16 = if !app.is_sparkline_visible() {
         0
     } else if app.mode() == AppMode::TimeRange {
@@ -200,6 +201,21 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         ];
         let ask_bar = Paragraph::new(Line::from(spans));
         frame.render_widget(ask_bar, filter_area);
+    }
+
+    // Render analyze bar if in analyze mode
+    if app.mode() == AppMode::Analyze {
+        let spans = vec![
+            Span::styled(
+                "analyze: ",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(app.analyze_input(), Style::default().fg(Color::White)),
+        ];
+        let analyze_bar = Paragraph::new(Line::from(spans));
+        frame.render_widget(analyze_bar, filter_area);
     }
 
     // Stats bar
@@ -476,6 +492,58 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         frame.render_widget(Clear, palette_area);
         frame.render_widget(palette_block, palette_area);
     }
+
+    // Analysis response overlay
+    if let Some(response) = app.analyze_response() {
+        let overlay_width = (area.width * 4 / 5).min(area.width.saturating_sub(4));
+        let overlay_height = (area.height * 7 / 10).min(area.height.saturating_sub(4));
+        let x = (area.width.saturating_sub(overlay_width)) / 2;
+        let y = (area.height.saturating_sub(overlay_height)) / 2;
+        let overlay_area = Rect::new(x, y, overlay_width, overlay_height);
+
+        let inner_width = overlay_width.saturating_sub(2) as usize;
+
+        // Word-wrap the response text into lines
+        let wrapped_lines: Vec<Line> = response
+            .lines()
+            .flat_map(|line| {
+                if line.is_empty() {
+                    return vec![Line::from("")];
+                }
+                let mut result = Vec::new();
+                let mut current = String::new();
+                for word in line.split_whitespace() {
+                    if current.is_empty() {
+                        current = word.to_string();
+                    } else if current.len() + 1 + word.len() <= inner_width {
+                        current.push(' ');
+                        current.push_str(word);
+                    } else {
+                        result.push(Line::from(current.clone()));
+                        current = word.to_string();
+                    }
+                }
+                if !current.is_empty() {
+                    result.push(Line::from(current));
+                }
+                result
+            })
+            .collect();
+
+        let scroll = app.analyze_scroll() as u16;
+
+        let overlay = Paragraph::new(wrapped_lines)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" AI Analysis (Esc to close) ")
+                    .style(Style::default().fg(Color::White).bg(Color::Black)),
+            )
+            .scroll((scroll, 0));
+
+        frame.render_widget(Clear, overlay_area);
+        frame.render_widget(overlay, overlay_area);
+    }
 }
 
 // --- Sparkline rendering ---
@@ -659,11 +727,12 @@ pub fn stats_level_at_position(app: &App, column: u16, row: u16, area: Rect) -> 
         return None;
     }
 
-    let filter_height = if app.is_filter_mode() || app.mode() == AppMode::Ask {
-        1
-    } else {
-        0
-    };
+    let filter_height =
+        if app.is_filter_mode() || app.mode() == AppMode::Ask || app.mode() == AppMode::Analyze {
+            1
+        } else {
+            0
+        };
     let sparkline_height: u16 = if !app.is_sparkline_visible() {
         0
     } else if app.mode() == AppMode::TimeRange {
