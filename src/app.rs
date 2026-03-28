@@ -16,6 +16,7 @@ pub enum AppMode {
     Cursor,
     CommandPalette,
     TimeRange,
+    Ask,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,6 +76,10 @@ pub struct App {
     time_mode: Option<TimeModeState>,
     sparkline_visible: bool,
     sparkline_width: usize,
+    ai_connected: bool,
+    ask_input: String,
+    ai_thinking: bool,
+    ai_error: Option<String>,
 }
 
 impl App {
@@ -130,6 +135,10 @@ impl App {
             time_mode: None,
             sparkline_visible,
             sparkline_width: 0,
+            ai_connected: false,
+            ask_input: String::new(),
+            ai_thinking: false,
+            ai_error: None,
         }
     }
 
@@ -901,6 +910,118 @@ impl App {
         if should_apply {
             // Mark end and apply
             self.time_mark_end_and_apply();
+        }
+    }
+
+    // AI / Ask mode methods
+
+    pub fn set_ai_connected(&mut self, connected: bool) {
+        self.ai_connected = connected;
+    }
+
+    pub fn is_ai_connected(&self) -> bool {
+        self.ai_connected
+    }
+
+    pub fn enter_ask_mode(&mut self) {
+        if !self.ai_connected {
+            return;
+        }
+        self.ask_input.clear();
+        self.ai_error = None;
+        self.mode = AppMode::Ask;
+    }
+
+    pub fn ask_input(&self) -> &str {
+        &self.ask_input
+    }
+
+    pub fn ask_type(&mut self, c: char) {
+        self.ask_input.push(c);
+    }
+
+    pub fn ask_backspace(&mut self) {
+        self.ask_input.pop();
+    }
+
+    pub fn exit_ask_mode(&mut self) {
+        self.mode = AppMode::Normal;
+    }
+
+    pub fn set_ai_thinking(&mut self, thinking: bool) {
+        self.ai_thinking = thinking;
+    }
+
+    pub fn is_ai_thinking(&self) -> bool {
+        self.ai_thinking
+    }
+
+    pub fn set_ai_error(&mut self, error: Option<String>) {
+        self.ai_error = error;
+    }
+
+    pub fn ai_error(&self) -> Option<&str> {
+        self.ai_error.as_deref()
+    }
+
+    /// Apply a parsed AI filter response by mapping it to existing filter primitives.
+    pub fn apply_ai_filter(&mut self, response: &crate::ai::AiFilterResponse) {
+        // Apply text filter
+        if let Some(ref text) = response.text {
+            self.filter_pattern = text.clone();
+        } else {
+            self.filter_pattern.clear();
+        }
+
+        // Apply level filter
+        if let Some(ref level_str) = response.min_level {
+            self.min_level = match level_str.to_uppercase().as_str() {
+                "TRACE" => Some(LogLevel::Trace),
+                "DEBUG" => Some(LogLevel::Debug),
+                "INFO" => Some(LogLevel::Info),
+                "WARN" | "WARNING" => Some(LogLevel::Warn),
+                "ERROR" => Some(LogLevel::Error),
+                "FATAL" => Some(LogLevel::Fatal),
+                _ => None,
+            };
+        } else {
+            self.min_level = None;
+        }
+
+        // Apply time range filter
+        if let Some(ref time_str) = response.time_range {
+            self.apply_ai_time_range(time_str);
+        } else {
+            self.time_range = None;
+        }
+
+        // Clear similar filter — AI query replaces all filters
+        self.similar_template = None;
+
+        self.recompute_filter();
+    }
+
+    fn apply_ai_time_range(&mut self, time_str: &str) {
+        if let Some(rest) = time_str.strip_prefix("last_") {
+            let (num_str, multiplier) = if let Some(n) = rest.strip_suffix('m') {
+                (n, 1i64)
+            } else if let Some(n) = rest.strip_suffix('h') {
+                (n, 60i64)
+            } else if let Some(n) = rest.strip_suffix('d') {
+                (n, 1440i64)
+            } else {
+                return;
+            };
+
+            if let Ok(num) = num_str.parse::<i64>() {
+                let minutes = num * multiplier;
+                if let Some(index) = &self.time_index
+                    && let Some(max_ts) = index.max_ts
+                {
+                    let start = max_ts - chrono::Duration::minutes(minutes);
+                    self.time_range = Some(TimeRange { start, end: max_ts });
+                }
+            }
         }
     }
 }

@@ -38,6 +38,18 @@ struct Cli {
     /// Follow for new lines (like tail -f). Works with files and piped stdin.
     #[arg(short, long)]
     follow: bool,
+
+    /// AI provider: "claude" or "openai" (also works for Ollama/llama.cpp)
+    #[arg(long)]
+    ai_provider: Option<String>,
+
+    /// AI endpoint URL (defaults per provider)
+    #[arg(long)]
+    ai_endpoint: Option<String>,
+
+    /// AI model name (defaults per provider)
+    #[arg(long)]
+    ai_model: Option<String>,
 }
 
 fn execute_action(action: MenuAction, value: String, app: &mut App) {
@@ -98,6 +110,7 @@ fn dispatch_action(action: command::Action, app: &mut App) {
             }
         }
         ToggleSparkline => app.toggle_sparkline(),
+        EnterAskMode => app.enter_ask_mode(),
         TimeMarkStart => {
             if app.mode() != AppMode::TimeRange {
                 app.enter_time_mode();
@@ -138,6 +151,44 @@ fn dispatch_action(action: command::Action, app: &mut App) {
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+
+    let ai_config: Option<ai::AiConfig> = {
+        let provider_str = cli
+            .ai_provider
+            .clone()
+            .or_else(|| std::env::var("LUMOLOG_AI_PROVIDER").ok());
+
+        if let Some(ref prov) = provider_str {
+            let provider = match prov.to_lowercase().as_str() {
+                "claude" => ai::AiProvider::Claude,
+                "openai" | "ollama" => ai::AiProvider::OpenAi,
+                other => {
+                    eprintln!(
+                        "Unknown AI provider: {other}. Use 'claude', 'openai', or 'ollama'."
+                    );
+                    std::process::exit(1);
+                }
+            };
+
+            let api_key = match provider {
+                ai::AiProvider::Claude => std::env::var("ANTHROPIC_API_KEY").unwrap_or_default(),
+                ai::AiProvider::OpenAi => std::env::var("OPENAI_API_KEY").unwrap_or_default(),
+            };
+
+            let endpoint = cli
+                .ai_endpoint
+                .clone()
+                .or_else(|| std::env::var("LUMOLOG_AI_ENDPOINT").ok());
+            let model = cli
+                .ai_model
+                .clone()
+                .or_else(|| std::env::var("LUMOLOG_AI_MODEL").ok());
+
+            Some(ai::AiConfig::new(provider, api_key, endpoint, model))
+        } else {
+            None
+        }
+    };
 
     let (lines, mut follow_source) = match &cli.file {
         Some(path) => {
@@ -250,7 +301,7 @@ fn main() -> anyhow::Result<()> {
         app.set_source_name("stdin".to_string());
     }
 
-    let result = run_event_loop(&mut terminal, &mut app, &mut follow_source);
+    let result = run_event_loop(&mut terminal, &mut app, &mut follow_source, ai_config);
 
     execute!(std::io::stdout(), DisableMouseCapture)?;
     ratatui::restore();
@@ -262,7 +313,9 @@ fn run_event_loop(
     terminal: &mut ratatui::DefaultTerminal,
     app: &mut App,
     follow_source: &mut Option<FollowSource>,
+    ai_config: Option<ai::AiConfig>,
 ) -> anyhow::Result<()> {
+    app.set_ai_connected(ai_config.is_some());
     loop {
         terminal.draw(|frame| ui::render(frame, app))?;
 
