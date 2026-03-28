@@ -47,6 +47,7 @@ fn test_build_system_prompt_with_fields() {
         "JSON",
         &["timestamp".into(), "level".into(), "message".into()],
         Some("2026-03-27T00:00:00 to 2026-03-27T12:00:00"),
+        &[],
     );
     assert!(prompt.contains("Log format: JSON"));
     assert!(prompt.contains("timestamp, level, message"));
@@ -55,10 +56,22 @@ fn test_build_system_prompt_with_fields() {
 
 #[test]
 fn test_build_system_prompt_no_fields_no_time() {
-    let prompt = build_system_prompt("Plain", &[], None);
+    let prompt = build_system_prompt("Plain", &[], None, &[]);
     assert!(prompt.contains("Log format: Plain"));
     assert!(prompt.contains("none detected"));
     assert!(!prompt.contains("Time range of log"));
+}
+
+#[test]
+fn test_build_system_prompt_with_sample_lines() {
+    let samples = vec![
+        r#"{"level":"ERROR","message":"Payment declined: card ending 4242"}"#.to_string(),
+        r#"{"level":"INFO","message":"Cache warmup completed"}"#.to_string(),
+    ];
+    let prompt = build_system_prompt("JSON", &[], None, &samples);
+    assert!(prompt.contains("Payment declined"));
+    assert!(prompt.contains("Cache warmup"));
+    assert!(prompt.contains("sample lines"));
 }
 
 #[test]

@@ -913,6 +913,22 @@ impl App {
         }
     }
 
+    /// Return a diverse sample of raw log lines for AI context.
+    /// Takes evenly-spaced lines across the full dataset to capture variety.
+    pub fn sample_lines(&self, max: usize) -> Vec<String> {
+        let total = self.parsed_lines.len();
+        if total == 0 {
+            return Vec::new();
+        }
+        if total <= max {
+            return self.parsed_lines.iter().map(|l| l.raw.clone()).collect();
+        }
+        let step = total / max;
+        (0..max)
+            .map(|i| self.parsed_lines[i * step].raw.clone())
+            .collect()
+    }
+
     // AI / Ask mode methods
 
     pub fn set_ai_connected(&mut self, connected: bool) {

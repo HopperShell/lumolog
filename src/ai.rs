@@ -34,6 +34,7 @@ pub fn build_system_prompt(
     format_name: &str,
     field_names: &[String],
     time_range_desc: Option<&str>,
+    sample_lines: &[String],
 ) -> String {
     let fields = if field_names.is_empty() {
         "none detected".to_string()
@@ -42,7 +43,8 @@ pub fn build_system_prompt(
     };
 
     let mut prompt = format!(
-        "You are a log analysis assistant. The user will describe what they want to find in their logs.\n\
+        "You are a log filter assistant. The user will describe what log lines they want to see. \
+         Respond with ONLY a JSON object containing filter criteria.\n\
          \n\
          Log format: {format_name}\n\
          Available fields: {fields}\n"
@@ -52,14 +54,26 @@ pub fn build_system_prompt(
         prompt.push_str(&format!("Time range of log: {range}\n"));
     }
 
+    if !sample_lines.is_empty() {
+        prompt.push_str("\nHere are sample lines from the log so you can see the actual content and vocabulary:\n\n");
+        for line in sample_lines {
+            prompt.push_str(line);
+            prompt.push('\n');
+        }
+        prompt.push('\n');
+    }
+
     prompt.push_str(
-        "\n\
-         Respond with a JSON object containing any combination of these optional fields:\n\
-         - \"text\": a substring or regex to filter log lines\n\
+        "Available filters:\n\
+         - \"text\": a substring to search for in log lines (case-insensitive). Pick a short, \
+         specific substring that actually appears in the sample lines above.\n\
          - \"min_level\": minimum log level (TRACE, DEBUG, INFO, WARN, ERROR, FATAL)\n\
-         - \"time_range\": a time range expression (e.g. \"last_30m\", \"last_1h\")\n\
+         - \"time_range\": time window: \"last_Xm\" for minutes, \"last_Xh\" for hours, \"last_Xd\" for days\n\
          \n\
-         Only include fields that are relevant to the user's query. Respond with JSON only, no explanation.",
+         IMPORTANT: The \"text\" filter does substring matching. Choose a word or phrase that literally \
+         appears in the log messages. Look at the sample lines to find the right term.\n\
+         \n\
+         Omit filters the user didn't mention. Respond with JSON only, no explanation.",
     );
 
     prompt

@@ -416,10 +416,13 @@ fn run_event_loop(
                                         Some(format!("{} to {}", min, max))
                                     });
 
+                                    let sample = app.sample_lines(30);
+
                                     let system_prompt = ai::build_system_prompt(
                                         format_name,
                                         &field_names,
                                         time_desc.as_deref(),
+                                        &sample,
                                     );
 
                                     let config = config.clone();
