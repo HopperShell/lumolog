@@ -8,12 +8,13 @@ pub struct AiFilterResponse {
 }
 
 /// Parse an AI response JSON string into an `AiFilterResponse`.
-/// Handles markdown code fences (```json ... ```) around the JSON.
+/// Handles markdown code fences, leading/trailing text, and extracts
+/// the first JSON object found in the response.
 pub fn parse_ai_response(raw: &str) -> Result<AiFilterResponse, String> {
     let trimmed = raw.trim();
 
     // Strip markdown code fences if present
-    let json_str = if trimmed.starts_with("```") {
+    let stripped = if trimmed.starts_with("```") {
         let without_opening = trimmed
             .strip_prefix("```json")
             .or_else(|| trimmed.strip_prefix("```"))
@@ -26,7 +27,25 @@ pub fn parse_ai_response(raw: &str) -> Result<AiFilterResponse, String> {
         trimmed
     };
 
-    serde_json::from_str(json_str).map_err(|e| format!("Failed to parse AI response: {e}"))
+    // Try direct parse first
+    if let Ok(resp) = serde_json::from_str::<AiFilterResponse>(stripped) {
+        return Ok(resp);
+    }
+
+    // Fallback: find the first { ... } block in the response
+    if let Some(start) = stripped.find('{')
+        && let Some(end) = stripped.rfind('}')
+    {
+        let json_str = &stripped[start..=end];
+        if let Ok(resp) = serde_json::from_str::<AiFilterResponse>(json_str) {
+            return Ok(resp);
+        }
+    }
+
+    Err(format!(
+        "Failed to parse AI response — no valid JSON found in: {}",
+        &raw[..raw.len().min(100)]
+    ))
 }
 
 /// Build a system prompt describing the log file context for the AI model.
@@ -171,7 +190,11 @@ struct OpenAiChoice {
 
 #[derive(Deserialize)]
 struct OpenAiChoiceMessage {
-    content: String,
+    #[serde(default)]
+    content: Option<String>,
+    /// Some "thinking" models put the answer here when content is empty
+    #[serde(default)]
+    reasoning_content: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -204,7 +227,7 @@ fn query_claude(
     let url = format!("{}/v1/messages", config.endpoint);
     let body = ClaudeRequest {
         model: config.model.clone(),
-        max_tokens: 256,
+        max_tokens: 2048,
         system: system_prompt.to_string(),
         messages: vec![ClaudeMessage {
             role: "user".to_string(),
@@ -247,7 +270,7 @@ fn query_openai(
     let url = format!("{}/chat/completions", config.endpoint);
     let body = OpenAiRequest {
         model: config.model.clone(),
-        max_tokens: 256,
+        max_tokens: 2048,
         messages: vec![
             OpenAiMessage {
                 role: "system".to_string(),
@@ -281,9 +304,16 @@ fn query_openai(
         .json()
         .map_err(|e| format!("Failed to parse OpenAI response: {e}"))?;
 
-    parsed
+    let msg = parsed
         .choices
         .first()
-        .map(|choice| choice.message.content.clone())
-        .ok_or_else(|| "Empty response from OpenAI".to_string())
+        .map(|choice| &choice.message)
+        .ok_or_else(|| "Empty response from OpenAI".to_string())?;
+
+    // Prefer content, fall back to reasoning_content (for "thinking" models)
+    msg.content
+        .clone()
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| msg.reasoning_content.clone())
+        .ok_or_else(|| "AI returned empty response".to_string())
 }
