@@ -112,6 +112,7 @@ fn dispatch_action(action: command::Action, app: &mut App) {
         }
         ToggleSparkline => app.toggle_sparkline(),
         EnterAskMode => app.enter_ask_mode(),
+        EnterAnalyzeMode => app.enter_analyze_mode(),
         TimeMarkStart => {
             if app.mode() != AppMode::TimeRange {
                 app.enter_time_mode();

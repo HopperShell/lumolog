@@ -17,6 +17,7 @@ pub enum AppMode {
     CommandPalette,
     TimeRange,
     Ask,
+    Analyze,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,6 +81,9 @@ pub struct App {
     ask_input: String,
     ai_thinking: bool,
     ai_error: Option<String>,
+    analyze_input: String,
+    analyze_response: Option<String>,
+    analyze_scroll: usize,
 }
 
 impl App {
@@ -139,6 +143,9 @@ impl App {
             ask_input: String::new(),
             ai_thinking: false,
             ai_error: None,
+            analyze_input: String::new(),
+            analyze_response: None,
+            analyze_scroll: 0,
         }
     }
 
@@ -1015,6 +1022,59 @@ impl App {
         self.similar_template = None;
 
         self.recompute_filter();
+    }
+
+    // Analyze mode methods
+
+    pub fn enter_analyze_mode(&mut self) {
+        if !self.ai_connected {
+            return;
+        }
+        self.analyze_input.clear();
+        self.ai_error = None;
+        self.mode = AppMode::Analyze;
+    }
+
+    pub fn exit_analyze_mode(&mut self) {
+        self.mode = AppMode::Normal;
+    }
+
+    pub fn analyze_input(&self) -> &str {
+        &self.analyze_input
+    }
+
+    pub fn analyze_type(&mut self, c: char) {
+        self.analyze_input.push(c);
+    }
+
+    pub fn analyze_backspace(&mut self) {
+        self.analyze_input.pop();
+    }
+
+    pub fn analyze_response(&self) -> Option<&str> {
+        self.analyze_response.as_deref()
+    }
+
+    pub fn set_analyze_response(&mut self, text: String) {
+        self.analyze_response = Some(text);
+        self.analyze_scroll = 0;
+    }
+
+    pub fn clear_analyze_response(&mut self) {
+        self.analyze_response = None;
+        self.analyze_scroll = 0;
+    }
+
+    pub fn analyze_scroll(&self) -> usize {
+        self.analyze_scroll
+    }
+
+    pub fn analyze_scroll_down(&mut self, n: usize) {
+        self.analyze_scroll = self.analyze_scroll.saturating_add(n);
+    }
+
+    pub fn analyze_scroll_up(&mut self, n: usize) {
+        self.analyze_scroll = self.analyze_scroll.saturating_sub(n);
     }
 
     fn apply_ai_time_range(&mut self, time_str: &str) {

@@ -30,6 +30,7 @@ pub enum Action {
     TimePresetLast1h,
     TimePresetLast24h,
     EnterAskMode,
+    EnterAnalyzeMode,
 }
 
 /// A command in the palette. `keybinding` is a display string for the help column.
@@ -54,6 +55,11 @@ pub fn commands() -> &'static [Command] {
             name: "AI query",
             keybinding: Some("a"),
             action: EnterAskMode,
+        },
+        Command {
+            name: "AI analyze",
+            keybinding: Some("A"),
+            action: EnterAnalyzeMode,
         },
         Command {
             name: "Level filter up",
